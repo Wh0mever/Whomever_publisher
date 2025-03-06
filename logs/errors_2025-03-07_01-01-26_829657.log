@@ -1,0 +1,141 @@
+2025-03-07 01:03:38 | ERROR | Критическая ошибка при авторизации +79964324353: The password (and thus its hash value) you entered is invalid (caused by CheckPasswordRequest)
+Traceback (most recent call last):
+
+  File "C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py", line 1631, in <module>
+    asyncio.run(main())
+    │       │   └ <function main at 0x00000209AF4CBA60>
+    │       └ <function run at 0x00000209A3AA5D00>
+    └ <module 'asyncio' from 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\asyncio\\__init__.py'>
+
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           │      │   └ <coroutine object main at 0x00000209AF03E200>
+           │      └ <function Runner.run at 0x00000209A5E1EA20>
+           └ <asyncio.runners.Runner object at 0x00000209AF4923C0>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           │    │     │                  └ <Task pending name='Task-1' coro=<main() running at C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py:1623> wait_for=...
+           │    │     └ <function BaseEventLoop.run_until_complete at 0x00000209A5E1C5E0>
+           │    └ <ProactorEventLoop running=True closed=False debug=False>
+           └ <asyncio.runners.Runner object at 0x00000209AF4923C0>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 708, in run_until_complete
+    self.run_forever()
+    │    └ <function BaseEventLoop.run_forever at 0x00000209A5E1C540>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 679, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x00000209A5E1E340>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 2027, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x00000209A5D4D300>
+    └ <Handle Task.task_wakeup()>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle Task.task_wakeup()>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle Task.task_wakeup()>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle Task.task_wakeup()>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+                     │    │           │    │         └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,)}
+                     │    │           │    └ Update(update_id=334263456, message=Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)...
+                     │    │           └ <aiogram.client.bot.Bot object at 0x00000209AF37BA10>
+                     │    └ <function Dispatcher.feed_update at 0x00000209AE2AF240>
+                     └ <Dispatcher '0x209af490c20'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+                     │    │      └ <function TelegramEventObserver.wrap_outer_middleware at 0x00000209AE2ADA80>
+                     │    └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x00000209AF49DED0>
+                     └ <Dispatcher '0x209af490c20'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263456, message=Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)...
+                 └ functools.partial(<aiogram.dispatcher.middlewares.user_context.UserContextMiddleware object at 0x00000209AF491940>, functools...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263456, message=Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)...
+                 └ functools.partial(<aiogram.fsm.middleware.FSMContextMiddleware object at 0x00000209AF491BE0>, <function TelegramEventObserver...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263456, message=Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)...
+                 └ <function TelegramEventObserver.trigger at 0x00000209B04E65C0>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+                 │             │      └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,), 'bot': <aiogra...
+                 │             └ Update(update_id=334263456, message=Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)...
+                 └ <function CallableObject.call at 0x00000209B04E6CA0>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+                 └ functools.partial(<bound method Dispatcher._listen_update of <Dispatcher '0x209af490c20'>>, Update(update_id=334263456, messa...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+                 │    │                           │                  │        └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,), 'bot': <aiogra...
+                 │    │                           │                  └ Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)), chat=Chat(id=1914567632, type='pr...
+                 │    │                           └ 'message'
+                 │    └ <function Router.propagate_event at 0x00000209AE2AE840>
+                 └ <Dispatcher '0x209af490c20'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+                 │        │                     │               │           └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,), 'bot': <aiogra...
+                 │        │                     │               └ Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)), chat=Chat(id=1914567632, type='pr...
+                 │        │                     └ <function Router.propagate_event.<locals>._wrapped at 0x00000209B04E6B60>
+                 │        └ <function TelegramEventObserver.wrap_outer_middleware at 0x00000209AE2ADA80>
+                 └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x00000209AF490980>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+                 │    └ <function Router._propagate_event at 0x00000209AE2AE8E0>
+                 └ <Dispatcher '0x209af490c20'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+                     │        │       │        └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,), 'bot': <aiogra...
+                     │        │       └ Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)), chat=Chat(id=1914567632, type='pr...
+                     │        └ <function TelegramEventObserver.trigger at 0x00000209AE2ADBC0>
+                     └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x00000209AF490980>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+                 │             │      └ {'dispatcher': <Dispatcher '0x209af490c20'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000209AF37BA10>,), 'bot': <aiogra...
+                 │             └ Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 20, 3, 40, tzinfo=TzInfo(UTC)), chat=Chat(id=1914567632, type='pr...
+                 └ <function CallableObject.call at 0x00000209B04E6F20>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+                 └ functools.partial(<function process_2fa at 0x00000209AF4C9080>, Message(message_id=1231, date=datetime.datetime(2025, 3, 6, 2...
+
+  File "C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py", line 236, in process_2fa
+    success, result = await session_manager.auth_code(phone, None, password=password, phone_code_hash=phone_code_hash)
+                            │               │         │                     │                         └ '75ced5d0bc0a10d8bd'
+                            │               │         │                     └ 'Aysha'
+                            │               │         └ '+79964324353'
+                            │               └ <function SessionManager.auth_code at 0x00000209AF4872E0>
+                            └ <utils.session_manager.SessionManager object at 0x00000209AF491E80>
+
+> File "C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\utils\session_manager.py", line 118, in auth_code
+    await client.sign_in(password=password)
+          │      │                └ 'Aysha'
+          │      └ <function AuthMethods.sign_in at 0x00000209AF39C040>
+          └ <telethon.client.telegramclient.TelegramClient object at 0x00000209B04D06E0>
+
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\telethon\client\auth.py", line 357, in sign_in
+    result = await self(request)
+                   │    └ <telethon.tl.functions.auth.CheckPasswordRequest object at 0x00000209B04D2A50>
+                   └ <telethon.client.telegramclient.TelegramClient object at 0x00000209B04D06E0>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\telethon\client\users.py", line 30, in __call__
+    return await self._call(self._sender, request, ordered=ordered)
+                 │    │     │    │        │                └ False
+                 │    │     │    │        └ <telethon.tl.functions.auth.CheckPasswordRequest object at 0x00000209B04D2A50>
+                 │    │     │    └ <telethon.network.mtprotosender.MTProtoSender object at 0x00000209B04D0980>
+                 │    │     └ <telethon.client.telegramclient.TelegramClient object at 0x00000209B04D06E0>
+                 │    └ <function UserMethods._call at 0x00000209AF24F2E0>
+                 └ <telethon.client.telegramclient.TelegramClient object at 0x00000209B04D06E0>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\telethon\client\users.py", line 87, in _call
+    result = await future
+                   └ <Future finished exception=PasswordHashInvalidError('The password (and thus its hash value) you entered is invalid (caused by...
+
+telethon.errors.rpcerrorlist.PasswordHashInvalidError: The password (and thus its hash value) you entered is invalid (caused by CheckPasswordRequest)
+2025-03-07 01:10:31 | ERROR | Ошибка при проверке группы @Whomever_test3: No user has "whomever_test3" as username
+2025-03-07 01:10:40 | ERROR | Ошибка при проверке группы @Whomever_test4: No user has "whomever_test4" as username

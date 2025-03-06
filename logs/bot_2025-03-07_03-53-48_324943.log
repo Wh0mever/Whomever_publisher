@@ -1,0 +1,232 @@
+2025-03-07 03:53:48 | INFO | Инициализация SessionManager
+2025-03-07 03:53:48 | DEBUG | Загружен существующий ключ шифрования
+2025-03-07 03:54:51 | ERROR | Ошибка при подготовке к удалению группы: invalid literal for int() with base 10: 'confirm'
+Traceback (most recent call last):
+
+  File "C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py", line 1766, in <module>
+    asyncio.run(main())
+    │       │   └ <function main at 0x0000026849B03C40>
+    │       └ <function run at 0x000002683D0C5D00>
+    └ <module 'asyncio' from 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\asyncio\\__init__.py'>
+
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           │      │   └ <coroutine object main at 0x00000268486A22C0>
+           │      └ <function Runner.run at 0x000002683F426A20>
+           └ <asyncio.runners.Runner object at 0x0000026848AF6660>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           │    │     │                  └ <Task pending name='Task-1' coro=<main() running at C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py:1758> wait_for=...
+           │    │     └ <function BaseEventLoop.run_until_complete at 0x000002683F4245E0>
+           │    └ <ProactorEventLoop running=True closed=False debug=False>
+           └ <asyncio.runners.Runner object at 0x0000026848AF6660>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 708, in run_until_complete
+    self.run_forever()
+    │    └ <function BaseEventLoop.run_forever at 0x000002683F424540>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 679, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x000002683F426340>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 2027, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x000002683F341300>
+    └ <Handle Task.task_wakeup()>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle Task.task_wakeup()>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle Task.task_wakeup()>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle Task.task_wakeup()>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+                     │    │           │    │         └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,)}
+                     │    │           │    └ Update(update_id=334263780, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                     │    │           └ <aiogram.client.bot.Bot object at 0x00000268489CBCB0>
+                     │    └ <function Dispatcher.feed_update at 0x0000026847927240>
+                     └ <Dispatcher '0x26848af4ec0'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+                     │    │      └ <function TelegramEventObserver.wrap_outer_middleware at 0x0000026847925A80>
+                     │    └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x0000026848AFE2D0>
+                     └ <Dispatcher '0x26848af4ec0'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263780, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                 └ functools.partial(<aiogram.dispatcher.middlewares.user_context.UserContextMiddleware object at 0x0000026848AF5BE0>, functools...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263780, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                 └ functools.partial(<aiogram.fsm.middleware.FSMContextMiddleware object at 0x0000026848AF5E80>, <function TelegramEventObserver...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263780, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                 └ <function TelegramEventObserver.trigger at 0x0000026849B51120>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+                 │             │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │             └ Update(update_id=334263780, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                 └ <function CallableObject.call at 0x0000026849B51300>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+                 └ functools.partial(<bound method Dispatcher._listen_update of <Dispatcher '0x26848af4ec0'>>, Update(update_id=334263780, messa...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+                 │    │                           │                  │        └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │    │                           │                  └ CallbackQuery(id='8223005365861336979', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+                 │    │                           └ 'callback_query'
+                 │    └ <function Router.propagate_event at 0x0000026847926840>
+                 └ <Dispatcher '0x26848af4ec0'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+                 │        │                     │               │           └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │        │                     │               └ CallbackQuery(id='8223005365861336979', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+                 │        │                     └ <function Router.propagate_event.<locals>._wrapped at 0x0000026849B511C0>
+                 │        └ <function TelegramEventObserver.wrap_outer_middleware at 0x0000026847925A80>
+                 └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x0000026848AB1D00>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+                 │    └ <function Router._propagate_event at 0x00000268479268E0>
+                 └ <Dispatcher '0x26848af4ec0'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+                     │        │       │        └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                     │        │       └ CallbackQuery(id='8223005365861336979', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+                     │        └ <function TelegramEventObserver.trigger at 0x0000026847925BC0>
+                     └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x0000026848AB1D00>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+                 │             │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │             └ CallbackQuery(id='8223005365861336979', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+                 └ <function CallableObject.call at 0x0000026849B51E40>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+                 └ functools.partial(<function delete_group at 0x0000026849B03920>, CallbackQuery(id='8223005365861336979', from_user=User(id=19...
+
+> File "C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py", line 1596, in delete_group
+    group_id = int(callback.data.split('_')[2])
+                   │        │    └ <method 'split' of 'str' objects>
+                   │        └ 'delete_group_confirm_2'
+                   └ CallbackQuery(id='8223005365861336979', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+
+ValueError: invalid literal for int() with base 10: 'confirm'
+2025-03-07 03:56:26 | ERROR | Ошибка при подготовке к удалению группы: invalid literal for int() with base 10: 'confirm'
+Traceback (most recent call last):
+
+  File "C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py", line 1766, in <module>
+    asyncio.run(main())
+    │       │   └ <function main at 0x0000026849B03C40>
+    │       └ <function run at 0x000002683D0C5D00>
+    └ <module 'asyncio' from 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\asyncio\\__init__.py'>
+
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           │      │   └ <coroutine object main at 0x00000268486A22C0>
+           │      └ <function Runner.run at 0x000002683F426A20>
+           └ <asyncio.runners.Runner object at 0x0000026848AF6660>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           │    │     │                  └ <Task pending name='Task-1' coro=<main() running at C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py:1758> wait_for=...
+           │    │     └ <function BaseEventLoop.run_until_complete at 0x000002683F4245E0>
+           │    └ <ProactorEventLoop running=True closed=False debug=False>
+           └ <asyncio.runners.Runner object at 0x0000026848AF6660>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 708, in run_until_complete
+    self.run_forever()
+    │    └ <function BaseEventLoop.run_forever at 0x000002683F424540>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 679, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x000002683F426340>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 2027, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x000002683F341300>
+    └ <Handle Task.task_wakeup()>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle Task.task_wakeup()>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle Task.task_wakeup()>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle Task.task_wakeup()>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+                     │    │           │    │         └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,)}
+                     │    │           │    └ Update(update_id=334263781, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                     │    │           └ <aiogram.client.bot.Bot object at 0x00000268489CBCB0>
+                     │    └ <function Dispatcher.feed_update at 0x0000026847927240>
+                     └ <Dispatcher '0x26848af4ec0'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+                     │    │      └ <function TelegramEventObserver.wrap_outer_middleware at 0x0000026847925A80>
+                     │    └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x0000026848AFE2D0>
+                     └ <Dispatcher '0x26848af4ec0'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263781, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                 └ functools.partial(<aiogram.dispatcher.middlewares.user_context.UserContextMiddleware object at 0x0000026848AF5BE0>, functools...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263781, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                 └ functools.partial(<aiogram.fsm.middleware.FSMContextMiddleware object at 0x0000026848AF5E80>, <function TelegramEventObserver...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+                 │       │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │       └ Update(update_id=334263781, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                 └ <function TelegramEventObserver.trigger at 0x0000026849B18360>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+                 │             │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │             └ Update(update_id=334263781, message=None, edited_message=None, channel_post=None, edited_channel_post=None, business_connecti...
+                 └ <function CallableObject.call at 0x0000026849B51DA0>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+                 └ functools.partial(<bound method Dispatcher._listen_update of <Dispatcher '0x26848af4ec0'>>, Update(update_id=334263781, messa...
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+                 │    │                           │                  │        └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │    │                           │                  └ CallbackQuery(id='8223005365548370447', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+                 │    │                           └ 'callback_query'
+                 │    └ <function Router.propagate_event at 0x0000026847926840>
+                 └ <Dispatcher '0x26848af4ec0'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+                 │        │                     │               │           └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │        │                     │               └ CallbackQuery(id='8223005365548370447', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+                 │        │                     └ <function Router.propagate_event.<locals>._wrapped at 0x0000026849B51080>
+                 │        └ <function TelegramEventObserver.wrap_outer_middleware at 0x0000026847925A80>
+                 └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x0000026848AB1D00>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+                 │    └ <function Router._propagate_event at 0x00000268479268E0>
+                 └ <Dispatcher '0x26848af4ec0'>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+                     │        │       │        └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                     │        │       └ CallbackQuery(id='8223005365548370447', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+                     │        └ <function TelegramEventObserver.trigger at 0x0000026847925BC0>
+                     └ <aiogram.dispatcher.event.telegram.TelegramEventObserver object at 0x0000026848AB1D00>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+                 │             │      └ {'dispatcher': <Dispatcher '0x26848af4ec0'>, 'bots': (<aiogram.client.bot.Bot object at 0x00000268489CBCB0>,), 'bot': <aiogra...
+                 │             └ CallbackQuery(id='8223005365548370447', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+                 └ <function CallableObject.call at 0x0000026849B51300>
+  File "C:\Users\Asus\AppData\Local\Programs\Python\Python313\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+                 └ functools.partial(<function delete_group at 0x0000026849B03920>, CallbackQuery(id='8223005365548370447', from_user=User(id=19...
+
+> File "C:\Users\Asus\OneDrive\Рабочий стол\Kwork\chencnik\bot.py", line 1596, in delete_group
+    group_id = int(callback.data.split('_')[2])
+                   │        │    └ <method 'split' of 'str' objects>
+                   │        └ 'delete_group_confirm_2'
+                   └ CallbackQuery(id='8223005365548370447', from_user=User(id=1914567632, is_bot=False, first_name='Нуритдинов Шохрух', last_name...
+
+ValueError: invalid literal for int() with base 10: 'confirm'

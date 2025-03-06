@@ -1,0 +1,3 @@
+2025-03-06 21:12:49 | INFO | Инициализация SessionManager
+2025-03-06 21:12:49 | DEBUG | Загружен существующий ключ шифрования
+2025-03-06 21:13:01 | ERROR | Ошибка при подготовке к удалению аккаунта: Telegram server says - Bad Request: BUTTON_DATA_INVALID

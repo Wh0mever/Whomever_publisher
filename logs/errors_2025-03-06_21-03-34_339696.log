@@ -1,0 +1,12 @@
+2025-03-06 21:03:38 | ERROR | Ошибка при подготовке к удалению аккаунта: 1 validation error for InlineKeyboardMarkup
+inline_keyboard
+  Field required [type=missing, input_value={}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.10/v/missing
+2025-03-06 21:03:42 | ERROR | Ошибка при подготовке к удалению аккаунта: 1 validation error for InlineKeyboardMarkup
+inline_keyboard
+  Field required [type=missing, input_value={}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.10/v/missing
+2025-03-06 21:03:50 | ERROR | Ошибка при подготовке к удалению аккаунта: 1 validation error for InlineKeyboardMarkup
+inline_keyboard
+  Field required [type=missing, input_value={}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.10/v/missing
