@@ -6,8 +6,8 @@
 
 ### 1. Клонирование репозитория
 ```bash
-git clone https://github.com/yourusername/telegram-autoposting-bot.git
-cd telegram-autoposting-bot
+git clone https://github.com/wh0mever/Whomever_publisher.git
+cd Whomever_publisher
 ```
 
 ### 2. Создание виртуального окружения
