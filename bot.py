@@ -13,11 +13,14 @@ from loguru import logger
 import sys
 from datetime import datetime, timedelta
 from telethon.tl.functions.channels import GetFullChannelRequest, JoinChannelRequest
-from telethon.errors import UserNotParticipantError
+from telethon.tl.functions.messages import ImportChatInviteRequest
+from telethon.errors import UserNotParticipantError, InviteHashInvalidError, InviteHashExpiredError, ChannelPrivateError
+from telethon.tl.types import PeerChannel
 import time
 from typing import Optional
 import os
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import re
 
 # Настраиваем логирование
 logger.remove()  # Удаляем стандартный обработчик
@@ -1583,65 +1586,182 @@ async def add_group_start(message: types.Message, state: FSMContext):
         "Для отмены нажмите ◀️ Назад"
     )
 
-# Обработчик ввода группы
 @dp.message(GroupStates.waiting_for_group)
 async def process_group_input(message: types.Message, state: FSMContext):
-    group_input = message.text.strip()
-    
-    # Проверяем формат ввода
-    if not (group_input.startswith('@') or group_input.startswith('-100')):
+    """Обработка ввода группы"""
+    try:
+        input_text = message.text.strip()
+        
+        # Проверяем, является ли это пригласительной ссылкой
+        if "t.me/" in input_text or "telegram.me/" in input_text:
+            # Создаем клиент для проверки группы
+            accounts = await Database.get_active_accounts()
+            if not accounts:
+                await message.answer("❌ Нет доступных аккаунтов для проверки группы!")
+                return
+                
+            session_file = accounts[0]["session_file"]
+            client = await session_manager.get_client(session_file)
+            
+            try:
+                # Сначала пробуем присоединиться к группе
+                await message.answer("🔄 Пытаюсь присоединиться к группе...")
+                
+                # Извлекаем hash из ссылки
+                invite_hash = None
+                if '+' in input_text:
+                    invite_hash = input_text.split('+')[-1]
+                elif 'joinchat/' in input_text:
+                    invite_hash = input_text.split('joinchat/')[-1]
+                
+                if invite_hash:
+                    try:
+                        # Для приватных групп используем ImportChatInviteRequest
+                        await client(ImportChatInviteRequest(invite_hash))
+                        await message.answer("✅ Успешно присоединились к группе")
+                    except (InviteHashInvalidError, InviteHashExpiredError):
+                        await message.answer("❌ Ссылка-приглашение недействительна или истекла")
+                        return
+                    except ChannelPrivateError:
+                        await message.answer("❌ Группа является приватной и недоступна")
+                        return
+                else:
+                    # Для публичных групп используем JoinChannelRequest
+                    try:
+                        await client(JoinChannelRequest(input_text))
+                        await message.answer("✅ Успешно присоединились к группе")
+                    except Exception as e:
+                        logger.error(f"Ошибка при присоединении к публичной группе: {str(e)}")
+                        await message.answer("❌ Не удалось присоединиться к группе. Проверьте ссылку и права доступа.")
+                        return
+
+                # После присоединения получаем информацию о группе
+                await asyncio.sleep(2)  # Небольшая задержка после присоединения
+                group_entity = await client.get_entity(input_text)
+                
+                if hasattr(group_entity, 'id'):
+                    group_id = str(group_entity.id)
+                    if not group_id.startswith('-100'):
+                        group_id = f"-100{group_id}"
+                        
+                    # Получаем дополнительную информацию о группе
+                    title = getattr(group_entity, 'title', 'Без названия')
+                    username = getattr(group_entity, 'username', None)
+                    
+                    # Добавляем группу в базу
+                    await Database.add_group(
+                        group_id=group_id.replace('-100', ''),
+                        title=title,
+                        username=username,
+                        invite_link=input_text
+                    )
+                    
+                    await message.answer(
+                        f"✅ Группа успешно добавлена!\n\n"
+                        f"📝 Название: {title}\n"
+                        f"🆔 ID: {group_id}\n"
+                        f"👥 Username: {f'@{username}' if username else 'отсутствует'}\n"
+                        f"🔗 Ссылка сохранена"
+                    )
+                    await state.clear()
+                    return
+                    
+            except Exception as e:
+                logger.error(f"Ошибка при получении информации о группе: {str(e)}")
+                await message.answer("❌ Не удалось получить информацию о группе по ссылке.")
+                return
+
+        # Если это не ссылка, проверяем стандартные форматы
+        if input_text.startswith('@'):
+            username = input_text[1:]
+            # Создаем клиент для проверки группы
+            accounts = await Database.get_active_accounts()
+            if not accounts:
+                await message.answer("❌ Нет доступных аккаунтов для проверки группы!")
+                return
+                
+            session_file = accounts[0]["session_file"]
+            client = await session_manager.get_client(session_file)
+            
+            try:
+                # Получаем информацию о группе по username
+                group = await client.get_entity(input_text)
+                group_id = str(group.id)
+                if not group_id.startswith('-100'):
+                    group_id = f"-100{group_id}"
+                    
+                await Database.add_group(
+                    group_id=group_id.replace('-100', ''),
+                    title=group.title,
+                    username=username
+                )
+                
+                await message.answer(
+                    f"✅ Группа успешно добавлена!\n\n"
+                    f"📝 Название: {group.title}\n"
+                    f"🆔 ID: {group_id}\n"
+                    f"👥 Username: @{username}"
+                )
+                await state.clear()
+                return
+                
+            except Exception as e:
+                logger.error(f"Ошибка при получении информации о группе: {str(e)}")
+                await message.answer("❌ Не удалось получить информацию о группе.")
+                return
+                
+        elif input_text.startswith('-100'):
+            group_id = input_text.replace('-100', '')
+            if not group_id.isdigit():
+                await message.answer("❌ Неверный формат ID группы!")
+                return
+                
+            # Создаем клиент для проверки группы
+            accounts = await Database.get_active_accounts()
+            if not accounts:
+                await message.answer("❌ Нет доступных аккаунтов для проверки группы!")
+                return
+                
+            session_file = accounts[0]["session_file"]
+            client = await session_manager.get_client(session_file)
+            
+            try:
+                # Получаем информацию о группе по ID
+                group = await client.get_entity(PeerChannel(int(group_id)))
+                
+                await Database.add_group(
+                    group_id=group_id,
+                    title=group.title,
+                    username=group.username if hasattr(group, 'username') else None
+                )
+                
+                await message.answer(
+                    f"✅ Группа успешно добавлена!\n\n"
+                    f"📝 Название: {group.title}\n"
+                    f"🆔 ID: -100{group_id}\n"
+                    f"👥 Username: {f'@{group.username}' if hasattr(group, 'username') and group.username else 'отсутствует'}"
+                )
+                await state.clear()
+                return
+                
+            except Exception as e:
+                logger.error(f"Ошибка при получении информации о группе: {str(e)}")
+                await message.answer("❌ Не удалось получить информацию о группе.")
+                return
+        
         await message.answer(
             "❌ Неверный формат!\n"
-            "Отправьте @username группы или её ID, начинающийся с -100"
+            "Отправьте:\n"
+            "- Пригласительную ссылку (https://t.me/...)\n"
+            "- Username группы (@group_name)\n"
+            "- ID группы (-100...)\n\n"
+            "Для отмены нажмите ◀️ Назад"
         )
-        return
-    
-    try:
-        # Получаем активный аккаунт для проверки доступа к группе
-        accounts = await Database.get_active_accounts()
-        if not accounts:
-            await message.answer("❌ Нет доступных аккаунтов для проверки группы")
-            await state.clear()
-            return
         
-        # Используем первый активный аккаунт для проверки
-        client = await session_manager.get_client(accounts[0]['session_file'])
-        
-        try:
-            # Пробуем получить информацию о группе
-            entity = await client.get_entity(group_input)
-            
-            if not hasattr(entity, 'title'):
-                await message.answer("❌ Указанный идентификатор не является группой")
-                return
-            
-            # Добавляем группу в базу
-            group_id = str(entity.id)
-            await Database.add_group(group_id, entity.title, entity.username or '')
-            
-            await message.answer(
-                f"✅ Группа успешно добавлена!\n\n"
-                f"Название: {entity.title}\n"
-                f"ID: {group_id}"
-            )
-            
-        except Exception as e:
-            logger.error(f"Ошибка при проверке группы {group_input}: {str(e)}")
-            await message.answer(
-                "❌ Не удалось получить доступ к группе.\n"
-                "Убедитесь, что:\n"
-                "1. Указан верный @username или ID\n"
-                "2. Группа существует и доступна\n"
-                "3. Аккаунт является участником группы"
-            )
-        finally:
-            await client.disconnect()
-            
     except Exception as e:
-        logger.exception(f"Ошибка при добавлении группы: {str(e)}")
-        await message.answer("❌ Произошла ошибка при добавлении группы")
-    
-    await state.clear()
+        logger.error(f"Ошибка при добавлении группы: {str(e)}")
+        await message.answer("❌ Произошла ошибка при добавлении группы.")
+        await state.clear()
 
 # Обработчик просмотра списка групп
 @dp.message(lambda m: m.text == "📋 Список групп")

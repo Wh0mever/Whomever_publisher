@@ -1,3 +1,24 @@
 {
-    "groups": []
+    "groups": [
+        {
+            "id": 1,
+            "group_id": "2417883175",
+            "title": "Test Kwork",
+            "username": null,
+            "invite_link": "https://t.me/+3FVxhXeMRqI2ZmQ6",
+            "status": "active",
+            "last_post": null,
+            "created_at": 1741362786
+        },
+        {
+            "id": 2,
+            "group_id": "2466959594",
+            "title": "Black Niggers 🤣/Ko'rshapalaklar / Night Nigger /Night Hunters / White nigers / Qora negrlar and Dark code forces",
+            "username": "whomever_contact_test",
+            "invite_link": null,
+            "status": "active",
+            "last_post": null,
+            "created_at": 1741363004
+        }
+    ]
 }
