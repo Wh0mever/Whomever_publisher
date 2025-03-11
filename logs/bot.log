@@ -1,0 +1,121 @@
+2025-03-12 02:56:22.287 | INFO     | __main__:process_phone:147 - Попытка добавления аккаунта с номером: +998944899059
+2025-03-12 02:56:22.287 | INFO     | __main__:process_phone:160 - Отправка запроса кода для номера +998944899059
+2025-03-12 02:56:22.287 | INFO     | utils.session_manager:create_session:54 - Создание новой сессии для номера +998944899059
+2025-03-12 02:56:24.512 | DEBUG    | utils.session_manager:create_session:61 - Подключение к Telegram установлено для +998944899059
+2025-03-12 02:56:24.612 | INFO     | utils.session_manager:create_session:64 - Отправка запроса кода для +998944899059
+2025-03-12 02:56:24.789 | INFO     | utils.session_manager:create_session:67 - Код успешно отправлен для +998944899059
+2025-03-12 02:56:24.789 | INFO     | __main__:process_phone:167 - Код подтверждения запрошен для номера +998944899059
+2025-03-12 02:56:28.447 | INFO     | __main__:process_code:188 - Получен код подтверждения для номера +998944899059
+2025-03-12 02:56:28.448 | DEBUG    | __main__:process_code:196 - phone_code_hash для +998944899059: ad5db635769150fe63
+2025-03-12 02:56:28.448 | INFO     | __main__:process_code:199 - Попытка авторизации с кодом для номера +998944899059
+2025-03-12 02:56:28.448 | INFO     | utils.session_manager:auth_code:105 - Попытка авторизации по коду для +998944899059
+2025-03-12 02:56:28.448 | DEBUG    | utils.session_manager:auth_code:122 - Проверка кода для +998944899059
+2025-03-12 02:56:28.657 | INFO     | utils.session_manager:auth_code:145 - Требуется 2FA для +998944899059
+2025-03-12 02:56:28.657 | INFO     | __main__:process_code:212 - Требуется 2FA для аккаунта +998944899059
+2025-03-12 02:56:31.432 | INFO     | utils.session_manager:auth_code:105 - Попытка авторизации по коду для +998944899059
+2025-03-12 02:56:31.433 | DEBUG    | utils.session_manager:auth_code:117 - Попытка входа с 2FA для +998944899059
+2025-03-12 02:56:32.074 | INFO     | utils.session_manager:auth_code:119 - 2FA пароль подтверждён для +998944899059
+2025-03-12 02:56:32.077 | INFO     | utils.session_manager:auth_code:139 - Сессия успешно сохранена в C:\Users\Asus\OneDrive\Рабочий стол\Whomever_publisher-main\sessions\+998944899059.session
+2025-03-12 02:56:46.215 | INFO     | __main__:delete_account:444 - Удален файл сессии: C:\Users\Asus\OneDrive\Рабочий стол\Whomever_publisher-main\sessions\+998944899059.session
+2025-03-12 02:56:46.216 | INFO     | __main__:delete_account:448 - Удален аккаунт +998944899059 из базы данных
+2025-03-12 02:56:59.548 | INFO     | __main__:process_phone:147 - Попытка добавления аккаунта с номером: +998944899059
+2025-03-12 02:56:59.549 | INFO     | __main__:process_phone:160 - Отправка запроса кода для номера +998944899059
+2025-03-12 02:56:59.549 | INFO     | utils.session_manager:create_session:54 - Создание новой сессии для номера +998944899059
+2025-03-12 02:57:01.224 | DEBUG    | utils.session_manager:create_session:61 - Подключение к Telegram установлено для +998944899059
+2025-03-12 02:57:01.329 | INFO     | utils.session_manager:create_session:64 - Отправка запроса кода для +998944899059
+2025-03-12 02:57:01.487 | INFO     | utils.session_manager:create_session:67 - Код успешно отправлен для +998944899059
+2025-03-12 02:57:01.487 | INFO     | __main__:process_phone:167 - Код подтверждения запрошен для номера +998944899059
+2025-03-12 02:57:04.739 | INFO     | __main__:process_code:188 - Получен код подтверждения для номера +998944899059
+2025-03-12 02:57:04.739 | DEBUG    | __main__:process_code:196 - phone_code_hash для +998944899059: cdb98ee0a0f1cdbda8
+2025-03-12 02:57:04.739 | INFO     | __main__:process_code:199 - Попытка авторизации с кодом для номера +998944899059
+2025-03-12 02:57:04.740 | INFO     | utils.session_manager:auth_code:105 - Попытка авторизации по коду для +998944899059
+2025-03-12 02:57:04.741 | DEBUG    | utils.session_manager:auth_code:122 - Проверка кода для +998944899059
+2025-03-12 02:57:05.112 | INFO     | utils.session_manager:auth_code:145 - Требуется 2FA для +998944899059
+2025-03-12 02:57:05.113 | INFO     | __main__:process_code:212 - Требуется 2FA для аккаунта +998944899059
+2025-03-12 02:57:07.719 | INFO     | utils.session_manager:auth_code:105 - Попытка авторизации по коду для +998944899059
+2025-03-12 02:57:07.720 | DEBUG    | utils.session_manager:auth_code:117 - Попытка входа с 2FA для +998944899059
+2025-03-12 02:57:08.479 | INFO     | utils.session_manager:auth_code:119 - 2FA пароль подтверждён для +998944899059
+2025-03-12 02:57:08.480 | INFO     | utils.session_manager:auth_code:139 - Сессия успешно сохранена в C:\Users\Asus\OneDrive\Рабочий стол\Whomever_publisher-main\sessions\+998944899059.session
+2025-03-12 02:57:22.723 | INFO     | utils.session_manager:get_client:186 - Получение клиента для сессии +998944899059.session
+2025-03-12 02:57:23.286 | INFO     | utils.session_manager:get_client:201 - Клиент успешно создан для +998944899059.session
+2025-03-12 02:57:23.518 | INFO     | __main__:process_group_input:1630 - Пользователь уже является участником группы
+2025-03-12 02:57:27.252 | INFO     | utils.session_manager:get_client:186 - Получение клиента для сессии +998944899059.session
+2025-03-12 02:57:27.764 | INFO     | utils.session_manager:get_client:201 - Клиент успешно создан для +998944899059.session
+2025-03-12 02:57:27.764 | INFO     | utils.posting_manager:check_group_access:84 - Проверяем доступ к группе 2417883175
+2025-03-12 02:57:27.966 | INFO     | utils.posting_manager:check_group_access:100 - Успешно получили группу: Test Kwork
+2025-03-12 02:57:28.202 | INFO     | utils.posting_manager:check_group_access:123 - Успешно получили права для группы Test Kwork
+2025-03-12 02:57:34.040 | INFO     | utils.session_manager:get_client:186 - Получение клиента для сессии +998944899059.session
+2025-03-12 02:57:34.549 | INFO     | utils.session_manager:get_client:201 - Клиент успешно создан для +998944899059.session
+2025-03-12 02:57:34.550 | INFO     | __main__:confirm_accounts:870 - Создана задача отправки в группу Test Kwork через аккаунт +998944899059
+2025-03-12 02:57:34.666 | INFO     | utils.posting_manager:send_post:243 - [Этап 1/5] Начинаем отправку поста через аккаунт +998944899059 в группу 2417883175
+2025-03-12 02:57:34.667 | INFO     | utils.posting_manager:send_post:258 - [Этап 2/5] Попытка подписаться на группу -1002417883175
+2025-03-12 02:57:34.882 | INFO     | utils.posting_manager:join_group:62 - ✅ Успешно подписались на группу по invite link
+2025-03-12 02:57:34.883 | INFO     | utils.posting_manager:send_post:262 - [Этап 2/5] ✅ Успешно подписались на группу
+2025-03-12 02:57:37.084 | INFO     | utils.posting_manager:send_post:268 - [Этап 2/5] ✅ Успешно получили группу: Test Kwork
+2025-03-12 02:57:37.085 | INFO     | utils.posting_manager:check_group_access:84 - Проверяем доступ к группе 2417883175
+2025-03-12 02:57:37.186 | INFO     | utils.posting_manager:check_group_access:100 - Успешно получили группу: Test Kwork
+2025-03-12 02:57:37.403 | INFO     | utils.posting_manager:check_group_access:123 - Успешно получили права для группы Test Kwork
+2025-03-12 02:57:37.404 | INFO     | utils.posting_manager:send_post:279 - [Этап 2/5] ✅ Права доступа подтверждены для Test Kwork
+2025-03-12 02:57:37.404 | INFO     | utils.posting_manager:send_post:283 - [Этап 3/5] Подготовка сообщения к отправке
+2025-03-12 02:57:37.539 | INFO     | utils.posting_manager:send_post:367 - [Этап 5/5] ✅ Сообщение успешно отправлено в группу Test Kwork
+2025-03-12 02:57:37.539 | INFO     | utils.posting_manager:send_post:368 - [Статистика] Время выполнения: 2.87 секунд
+2025-03-12 02:57:37.541 | INFO     | __main__:confirm_accounts:879 - ✅ Успешно отправлено в группу Test Kwork через аккаунт +998944899059
+2025-03-12 02:57:54.068 | INFO     | utils.session_manager:get_client:186 - Получение клиента для сессии +998944899059.session
+2025-03-12 02:57:54.594 | INFO     | utils.session_manager:get_client:201 - Клиент успешно создан для +998944899059.session
+2025-03-12 02:57:54.594 | INFO     | __main__:confirm_accounts:870 - Создана задача отправки в группу Test Kwork через аккаунт +998944899059
+2025-03-12 02:57:54.700 | INFO     | utils.posting_manager:send_post:243 - [Этап 1/5] Начинаем отправку поста через аккаунт +998944899059 в группу 2417883175
+2025-03-12 02:57:54.701 | INFO     | utils.posting_manager:send_post:258 - [Этап 2/5] Попытка подписаться на группу -1002417883175
+2025-03-12 02:57:55.061 | INFO     | utils.posting_manager:join_group:62 - ✅ Успешно подписались на группу по invite link
+2025-03-12 02:57:55.062 | INFO     | utils.posting_manager:send_post:262 - [Этап 2/5] ✅ Успешно подписались на группу
+2025-03-12 02:57:57.225 | INFO     | utils.posting_manager:send_post:268 - [Этап 2/5] ✅ Успешно получили группу: Test Kwork
+2025-03-12 02:57:57.226 | INFO     | utils.posting_manager:check_group_access:84 - Проверяем доступ к группе 2417883175
+2025-03-12 02:57:57.382 | INFO     | utils.posting_manager:check_group_access:100 - Успешно получили группу: Test Kwork
+2025-03-12 02:57:57.626 | INFO     | utils.posting_manager:check_group_access:123 - Успешно получили права для группы Test Kwork
+2025-03-12 02:57:57.627 | INFO     | utils.posting_manager:send_post:279 - [Этап 2/5] ✅ Права доступа подтверждены для Test Kwork
+2025-03-12 02:57:57.627 | INFO     | utils.posting_manager:send_post:283 - [Этап 3/5] Подготовка сообщения к отправке
+2025-03-12 02:57:57.628 | INFO     | utils.posting_manager:send_post:292 - [Этап 3/5] Подготовка фото
+2025-03-12 02:57:58.984 | INFO     | utils.posting_manager:send_post:367 - [Этап 5/5] ✅ Сообщение успешно отправлено в группу Test Kwork
+2025-03-12 02:57:58.985 | INFO     | utils.posting_manager:send_post:368 - [Статистика] Время выполнения: 4.28 секунд
+2025-03-12 02:57:58.985 | INFO     | __main__:confirm_accounts:879 - ✅ Успешно отправлено в группу Test Kwork через аккаунт +998944899059
+2025-03-12 03:02:01.678 | INFO     | __main__:check_automated_posts:2377 - Отправка автоматизированного поста #1
+2025-03-12 03:02:01.680 | INFO     | utils.session_manager:get_client:186 - Получение клиента для сессии +998944899059.session
+2025-03-12 03:02:02.206 | INFO     | utils.session_manager:get_client:201 - Клиент успешно создан для +998944899059.session
+2025-03-12 03:02:02.405 | INFO     | utils.posting_manager:send_post:243 - [Этап 1/5] Начинаем отправку поста через аккаунт +998944899059 в группу 2417883175
+2025-03-12 03:02:02.406 | INFO     | utils.posting_manager:send_post:258 - [Этап 2/5] Попытка подписаться на группу -1002417883175
+2025-03-12 03:02:02.654 | INFO     | utils.posting_manager:join_group:62 - ✅ Успешно подписались на группу по invite link
+2025-03-12 03:02:02.655 | INFO     | utils.posting_manager:send_post:262 - [Этап 2/5] ✅ Успешно подписались на группу
+2025-03-12 03:02:03.149 | INFO     | __main__:process_auto_content:2214 - Контент поста 1 успешно обновлен
+2025-03-12 03:02:03.256 | INFO     | __main__:process_auto_content:2214 - Контент поста 1 успешно обновлен
+2025-03-12 03:02:04.828 | INFO     | utils.posting_manager:send_post:268 - [Этап 2/5] ✅ Успешно получили группу: Test Kwork
+2025-03-12 03:02:04.828 | INFO     | utils.posting_manager:check_group_access:84 - Проверяем доступ к группе 2417883175
+2025-03-12 03:02:05.030 | INFO     | utils.posting_manager:check_group_access:100 - Успешно получили группу: Test Kwork
+2025-03-12 03:02:05.289 | INFO     | utils.posting_manager:check_group_access:123 - Успешно получили права для группы Test Kwork
+2025-03-12 03:02:05.289 | INFO     | utils.posting_manager:send_post:279 - [Этап 2/5] ✅ Права доступа подтверждены для Test Kwork
+2025-03-12 03:02:05.290 | INFO     | utils.posting_manager:send_post:283 - [Этап 3/5] Подготовка сообщения к отправке
+2025-03-12 03:02:05.413 | INFO     | utils.posting_manager:send_post:367 - [Этап 5/5] ✅ Сообщение успешно отправлено в группу Test Kwork
+2025-03-12 03:02:05.413 | INFO     | utils.posting_manager:send_post:368 - [Статистика] Время выполнения: 3.01 секунд
+2025-03-12 03:02:05.414 | INFO     | __main__:check_automated_posts:2436 - Автоматизированный пост #1 отправлен
+2025-03-12 03:03:05.415 | INFO     | __main__:check_automated_posts:2377 - Отправка автоматизированного поста #1
+2025-03-12 03:03:05.417 | INFO     | utils.session_manager:get_client:186 - Получение клиента для сессии +998944899059.session
+2025-03-12 03:03:05.906 | INFO     | utils.session_manager:get_client:201 - Клиент успешно создан для +998944899059.session
+2025-03-12 03:03:06.101 | INFO     | utils.posting_manager:send_post:243 - [Этап 1/5] Начинаем отправку поста через аккаунт +998944899059 в группу 2417883175
+2025-03-12 03:03:06.102 | INFO     | utils.posting_manager:send_post:258 - [Этап 2/5] Попытка подписаться на группу -1002417883175
+2025-03-12 03:03:06.312 | INFO     | utils.posting_manager:join_group:62 - ✅ Успешно подписались на группу по invite link
+2025-03-12 03:03:06.312 | INFO     | utils.posting_manager:send_post:262 - [Этап 2/5] ✅ Успешно подписались на группу
+2025-03-12 03:03:08.421 | INFO     | utils.posting_manager:send_post:268 - [Этап 2/5] ✅ Успешно получили группу: Test Kwork
+2025-03-12 03:03:08.421 | INFO     | utils.posting_manager:check_group_access:84 - Проверяем доступ к группе 2417883175
+2025-03-12 03:03:08.521 | INFO     | utils.posting_manager:check_group_access:100 - Успешно получили группу: Test Kwork
+2025-03-12 03:03:08.736 | INFO     | utils.posting_manager:check_group_access:123 - Успешно получили права для группы Test Kwork
+2025-03-12 03:03:08.737 | INFO     | utils.posting_manager:send_post:279 - [Этап 2/5] ✅ Права доступа подтверждены для Test Kwork
+2025-03-12 03:03:08.737 | INFO     | utils.posting_manager:send_post:283 - [Этап 3/5] Подготовка сообщения к отправке
+2025-03-12 03:03:08.738 | INFO     | utils.posting_manager:send_post:292 - [Этап 3/5] Подготовка фото
+2025-03-12 03:03:09.927 | INFO     | utils.posting_manager:send_post:367 - [Этап 5/5] ✅ Сообщение успешно отправлено в группу Test Kwork
+2025-03-12 03:03:09.927 | INFO     | utils.posting_manager:send_post:368 - [Статистика] Время выполнения: 3.83 секунд
+2025-03-12 03:03:09.927 | INFO     | __main__:check_automated_posts:2436 - Автоматизированный пост #1 отправлен
+2025-03-12 03:05:04.300 | INFO     | utils.session_manager:get_client:186 - Получение клиента для сессии +998944899059.session
+2025-03-12 03:05:04.869 | INFO     | utils.session_manager:get_client:201 - Клиент успешно создан для +998944899059.session
+2025-03-12 03:05:04.869 | INFO     | utils.posting_manager:check_group_access:84 - Проверяем доступ к группе 2417883175
+2025-03-12 03:05:05.120 | INFO     | utils.posting_manager:check_group_access:100 - Успешно получили группу: Test Kwork
+2025-03-12 03:05:05.390 | INFO     | utils.posting_manager:check_group_access:123 - Успешно получили права для группы Test Kwork
+2025-03-12 03:05:41.308 | INFO     | __main__:delete_account:444 - Удален файл сессии: C:\Users\Asus\OneDrive\Рабочий стол\Whomever_publisher-main\sessions\+998944899059.session
+2025-03-12 03:05:41.310 | INFO     | __main__:delete_account:448 - Удален аккаунт +998944899059 из базы данных

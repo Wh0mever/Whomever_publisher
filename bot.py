@@ -2237,6 +2237,7 @@ async def process_auto_content(message: types.Message, state: FSMContext):
                 "🔄 Укажите, сколько раз в день нужно отправлять этот пост\n"
                 "Введите число от 1 до 24"
             )
+            return
             
         await state.clear()
         
@@ -2251,11 +2252,20 @@ async def process_auto_times_count(message: types.Message, state: FSMContext):
     try:
         times_count = int(message.text)
         if not 1 <= times_count <= 24:
-            raise ValueError
+            await message.answer(
+                "❌ Пожалуйста, введите корректное число от 1 до 24"
+            )
+            return
             
         data = await state.get_data()
-        edit_post_id = data.get('edit_post_id')
+        message_data = data.get('message_data')
         
+        if not message_data:
+            logger.error("Данные сообщения не найдены")
+            await message.answer("❌ Ошибка: данные не найдены")
+            await state.clear()
+            return
+            
         await state.update_data(times_count=times_count, times=[], current_time_index=0)
         
         # Переходим к вводу первого времени
