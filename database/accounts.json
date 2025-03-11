@@ -1,12 +1,3 @@
 {
-    "accounts": [
-        {
-            "id": 1,
-            "phone": "+380991183964",
-            "session_file": "+380991183964.session",
-            "status": "active",
-            "last_used": null,
-            "created_at": 1741353434
-        }
-    ]
+    "accounts": []
 }

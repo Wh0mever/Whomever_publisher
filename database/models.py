@@ -6,6 +6,7 @@ from pathlib import Path
 from config import BASE_DIR
 import time
 from typing import List, Optional
+import logging
 
 # Пути к JSON файлам
 DATABASE_DIR = BASE_DIR / "database"
@@ -324,4 +325,95 @@ class Database:
         for group in data.get("groups", []):
             if str(group["id"]) == str(group_id):
                 return group
-        return None 
+        return None
+
+    @staticmethod
+    async def add_automated_post(
+        message_data: dict,
+        groups: List[int],
+        accounts: List[int],
+        times: List[str]
+    ) -> int:
+        """Добавление нового автоматизированного поста"""
+        data = await Database._read_json(POSTS_FILE)
+        posts = data.get("automated_posts", [])
+        
+        # Генерируем новый ID
+        new_id = max([post.get("id", 0) for post in posts], default=0) + 1
+        
+        post = {
+            "id": new_id,
+            "message": message_data,
+            "groups": groups,
+            "accounts": accounts,
+            "times": times,  # Список времен для ежедневной отправки
+            "status": "active",  # active, paused, deleted
+            "created_at": int(time.time())
+        }
+        
+        if "automated_posts" not in data:
+            data["automated_posts"] = []
+            
+        data["automated_posts"].append(post)
+        await Database._write_json(POSTS_FILE, data)
+        return new_id
+
+    @staticmethod
+    async def get_automated_posts() -> List[dict]:
+        """Получение всех автоматизированных постов"""
+        data = await Database._read_json(POSTS_FILE)
+        return data.get("automated_posts", [])
+
+    @staticmethod
+    async def get_automated_post_by_id(post_id: int) -> Optional[dict]:
+        """Получение автоматизированного поста по ID"""
+        data = await Database._read_json(POSTS_FILE)
+        for post in data.get("automated_posts", []):
+            if post["id"] == post_id:
+                return post
+        return None
+
+    @staticmethod
+    async def update_automated_post(
+        post_id: int,
+        groups: List[int] = None,
+        accounts: List[int] = None,
+        times: List[str] = None,
+        status: str = None,
+        message_data: dict = None
+    ):
+        """Обновление автоматизированного поста"""
+        data = await Database._read_json(POSTS_FILE)
+        posts = data.get("automated_posts", [])
+        updated = False
+        
+        for post in posts:
+            if post["id"] == post_id:
+                if groups is not None:
+                    post["groups"] = sorted(list(set(groups)))  # Убираем дубликаты и сортируем
+                if accounts is not None:
+                    post["accounts"] = sorted(list(set(accounts)))  # Убираем дубликаты и сортируем
+                if times is not None:
+                    post["times"] = sorted(list(set(times)))  # Убираем дубликаты и сортируем
+                if status is not None:
+                    post["status"] = status
+                if message_data is not None:
+                    post["message"] = message_data
+                updated = True
+                break
+                
+        if not updated:
+            logging.error(f"Пост с ID {post_id} не найден при обновлении")
+            return False
+            
+        data["automated_posts"] = posts
+        await Database._write_json(POSTS_FILE, data)
+        return True
+
+    @staticmethod
+    async def delete_automated_post(post_id: int):
+        """Удаление автоматизированного поста"""
+        data = await Database._read_json(POSTS_FILE)
+        posts = data.get("automated_posts", [])
+        data["automated_posts"] = [p for p in posts if p["id"] != post_id]
+        await Database._write_json(POSTS_FILE, data) 

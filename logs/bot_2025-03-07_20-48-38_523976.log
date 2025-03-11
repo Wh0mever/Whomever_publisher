@@ -1,5 +1,0 @@
-2025-03-07 20:48:38 | INFO | Инициализация SessionManager
-2025-03-07 20:48:38 | DEBUG | Загружен существующий ключ шифрования
-2025-03-07 20:48:45 | INFO | Получение клиента для сессии +380991183964.session
-2025-03-07 20:48:45 | INFO | Клиент успешно создан для +380991183964.session
-2025-03-07 20:48:46 | ERROR | Ошибка при получении информации о группе: Cannot get entity from a channel (or group) that you are not part of. Join the group and retry

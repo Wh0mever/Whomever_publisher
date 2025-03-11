@@ -14,7 +14,7 @@ import sys
 from datetime import datetime, timedelta
 from telethon.tl.functions.channels import GetFullChannelRequest, JoinChannelRequest
 from telethon.tl.functions.messages import ImportChatInviteRequest
-from telethon.errors import UserNotParticipantError, InviteHashInvalidError, InviteHashExpiredError, ChannelPrivateError
+from telethon.errors import UserNotParticipantError, InviteHashInvalidError, InviteHashExpiredError, ChannelPrivateError, UserAlreadyParticipantError
 from telethon.tl.types import PeerChannel
 import time
 from typing import Optional
@@ -61,6 +61,12 @@ class PostStates(StatesGroup):
     waiting_for_groups = State()
     waiting_for_accounts = State()
     waiting_for_delay = State()
+    # Новые состояния для автоматизации
+    waiting_for_auto_groups = State()
+    waiting_for_auto_accounts = State()
+    waiting_for_auto_content = State()
+    waiting_for_auto_times_count = State()
+    waiting_for_auto_time = State()
 
 class SettingsStates(StatesGroup):
     waiting_for_delay = State()
@@ -75,27 +81,26 @@ session_manager = SessionManager()
 posting_pool = PostingPool(max_threads=MAX_THREADS)
 
 def get_main_keyboard() -> types.ReplyKeyboardMarkup:
-    """Возвращает основную клавиатуру бота"""
-    return types.ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                types.KeyboardButton(text="📝 Создать пост"),
-                types.KeyboardButton(text="⏰ Отложенный пост")
-            ],
-            [
-                types.KeyboardButton(text="📋 Список постов"),
-                types.KeyboardButton(text="🔍 Проверка групп")
-            ],
-            [
-                types.KeyboardButton(text="👥 Управление группами"),
-                types.KeyboardButton(text="👤 Управление аккаунтами")
-            ],
-            [
-                types.KeyboardButton(text="⚙️ Настройки")
-            ]
+    """Создание основной клавиатуры"""
+    keyboard = [
+        [
+            types.KeyboardButton(text="👤 Управление аккаунтами"),
+            types.KeyboardButton(text="👥 Управление группами")
         ],
-        resize_keyboard=True
-    )
+        [
+            types.KeyboardButton(text="✍️ Новый пост"),
+            types.KeyboardButton(text="⏰ Отложенный пост")
+        ],
+        [
+            types.KeyboardButton(text="🤖 Автоматизация постов"),
+            types.KeyboardButton(text="📋 Список постов")
+        ],
+        [
+            types.KeyboardButton(text="⚙️ Настройка автопостов"),
+            types.KeyboardButton(text="⚙️ Настройки")
+        ]
+    ]
+    return types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 # Обработчики команд
 @dp.message(Command("start"))
@@ -1614,30 +1619,58 @@ async def process_group_input(message: types.Message, state: FSMContext):
                 elif 'joinchat/' in input_text:
                     invite_hash = input_text.split('joinchat/')[-1]
                 
-                if invite_hash:
-                    try:
+                try:
+                    if invite_hash:
                         # Для приватных групп используем ImportChatInviteRequest
-                        await client(ImportChatInviteRequest(invite_hash))
-                        await message.answer("✅ Успешно присоединились к группе")
-                    except (InviteHashInvalidError, InviteHashExpiredError):
-                        await message.answer("❌ Ссылка-приглашение недействительна или истекла")
-                        return
-                    except ChannelPrivateError:
-                        await message.answer("❌ Группа является приватной и недоступна")
-                        return
-                else:
-                    # Для публичных групп используем JoinChannelRequest
-                    try:
-                        await client(JoinChannelRequest(input_text))
-                        await message.answer("✅ Успешно присоединились к группе")
-                    except Exception as e:
-                        logger.error(f"Ошибка при присоединении к публичной группе: {str(e)}")
-                        await message.answer("❌ Не удалось присоединиться к группе. Проверьте ссылку и права доступа.")
-                        return
+                        try:
+                            await client(ImportChatInviteRequest(invite_hash))
+                            await message.answer("✅ Успешно присоединились к группе")
+                        except UserAlreadyParticipantError:
+                            # Если уже участник - это нормально, продолжаем
+                            logger.info("Пользователь уже является участником группы")
+                            pass
+                        except (InviteHashInvalidError, InviteHashExpiredError):
+                            await message.answer("❌ Ссылка-приглашение недействительна или истекла")
+                            return
+                        except ChannelPrivateError:
+                            await message.answer("❌ Группа является приватной и недоступна")
+                            return
+                    else:
+                        # Для публичных групп используем JoinChannelRequest
+                        try:
+                            await client(JoinChannelRequest(input_text))
+                            await message.answer("✅ Успешно присоединились к группе")
+                        except UserAlreadyParticipantError:
+                            # Если уже участник - это нормально, продолжаем
+                            logger.info("Пользователь уже является участником группы")
+                            pass
+                        except Exception as e:
+                            logger.error(f"Ошибка при присоединении к публичной группе: {str(e)}")
+                            await message.answer("❌ Не удалось присоединиться к группе. Проверьте ссылку и права доступа.")
+                            return
+                except Exception as e:
+                    # Если возникла ошибка при присоединении, но это не критично - продолжаем
+                    logger.warning(f"Некритичная ошибка при присоединении к группе: {str(e)}")
+                    pass
 
                 # После присоединения получаем информацию о группе
                 await asyncio.sleep(2)  # Небольшая задержка после присоединения
-                group_entity = await client.get_entity(input_text)
+                
+                try:
+                    # Пробуем получить сущность по ссылке
+                    group_entity = await client.get_entity(input_text)
+                except ValueError:
+                    # Если не получилось по ссылке, пробуем по hash
+                    try:
+                        messages = await client.get_messages(invite_hash, limit=1)
+                        if messages and messages[0].peer_id:
+                            group_entity = await client.get_entity(messages[0].peer_id)
+                        else:
+                            raise ValueError("Не удалось получить информацию о группе")
+                    except Exception as e:
+                        logger.error(f"Ошибка при получении информации о группе: {str(e)}")
+                        await message.answer("❌ Не удалось получить информацию о группе.")
+                        return
                 
                 if hasattr(group_entity, 'id'):
                     group_id = str(group_entity.id)
@@ -1992,12 +2025,1177 @@ async def check_groups_access(message: types.Message):
         logger.exception(f"Ошибка при проверке групп: {str(e)}")
         await message.answer(f"❌ Ошибка при проверке групп: {str(e)}")
 
+@dp.message(lambda m: m.text == "🤖 Автоматизация постов")
+async def automated_post_start(message: types.Message, state: FSMContext):
+    """Начало создания автоматизированного поста"""
+    # Очищаем предыдущие данные
+    await state.clear()
+    await state.set_state(PostStates.waiting_for_auto_groups)
+    await state.update_data(selected_groups=[])
+    
+    # Получаем список групп
+    groups = await Database.get_active_groups()
+    if not groups:
+        await message.answer(
+            "❌ У вас нет добавленных групп.\n"
+            "Сначала добавьте хотя бы одну группу!"
+        )
+        await state.clear()
+        return
+        
+    # Создаем клавиатуру с группами
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=f"⭕️ {group['title']}",
+                    callback_data=f"select_group_{group['id']}"
+                )
+            ] for group in groups
+        ] + [
+            [
+                types.InlineKeyboardButton(
+                    text="✅ Подтвердить выбор",
+                    callback_data="confirm_auto_groups"
+                )
+            ]
+        ]
+    )
+    
+    await message.answer(
+        "👥 Выберите группы для автопостинга\n"
+        "Нажмите на группу, чтобы выбрать её.\n"
+        "Можно выбрать несколько групп.",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data == "confirm_auto_groups")
+async def confirm_auto_groups(callback: types.CallbackQuery, state: FSMContext):
+    """Подтверждение выбора групп для автоматизированного поста"""
+    data = await state.get_data()
+    selected_groups = data.get('selected_groups', [])
+    
+    if not selected_groups:
+        await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
+        return
+    
+    # Переходим к выбору аккаунтов
+    await state.set_state(PostStates.waiting_for_auto_accounts)
+    
+    # Получаем список активных аккаунтов
+    accounts = await Database.get_active_accounts()
+    if not accounts:
+        await callback.message.edit_text(
+            "❌ У вас нет активных аккаунтов.\n"
+            "Сначала добавьте хотя бы один аккаунт!"
+        )
+        await state.clear()
+        return
+    
+    # Создаем клавиатуру с аккаунтами
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=f"⭕️ {account['phone']}",
+                    callback_data=f"select_account_{account['id']}"
+                )
+            ] for account in accounts
+        ]
+    )
+    
+    await callback.message.edit_text(
+        "Выберите аккаунты для отправки:\n"
+        "Нажмите на аккаунт, чтобы выбрать его.",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data == "confirm_auto_accounts")
+async def confirm_auto_accounts(callback: types.CallbackQuery, state: FSMContext):
+    """Подтверждение выбора аккаунтов для автоматизированного поста"""
+    data = await state.get_data()
+    selected_accounts = data.get('selected_accounts', [])
+    
+    if not selected_accounts:
+        await callback.answer("❌ Выберите хотя бы один аккаунт!", show_alert=True)
+        return
+        
+    # Переходим к вводу контента
+    await state.set_state(PostStates.waiting_for_auto_content)
+    await callback.message.edit_text(
+        "📝 Отправьте контент для автоматизированного поста\n"
+        "Это может быть текст, фото, видео или файл"
+    )
+
+@dp.callback_query(lambda c: c.data.startswith('edit_auto_content_'))
+async def edit_auto_content(callback: types.CallbackQuery, state: FSMContext):
+    """Редактирование контента автоматизированного поста"""
+    try:
+        # Очищаем предыдущее состояние
+        await state.clear()
+        
+        # Получаем ID поста
+        post_id = int(callback.data.split('_')[3])
+        post = await Database.get_automated_post_by_id(post_id)
+        
+        if not post:
+            logger.error(f"Пост с ID {post_id} не найден")
+            await callback.answer("❌ Пост не найден", show_alert=True)
+            return
+            
+        # Сохраняем только ID поста для редактирования
+        await state.update_data(edit_post_id=post_id)
+        
+        # Показываем текущий контент и запрашиваем новый
+        current_content = post['message'].get('text', '') or post['message'].get('caption', '')
+        await state.set_state(PostStates.waiting_for_auto_content)
+        
+        # Создаем клавиатуру с кнопкой отмены
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="❌ Отмена",
+                        callback_data=f"auto_post_menu_{post_id}"
+                    )
+                ]
+            ]
+        )
+        
+        await callback.message.edit_text(
+            f"📝 Текущий контент поста:\n\n"
+            f"{current_content}\n\n"
+            f"Отправьте новый контент для поста или нажмите отмена",
+            reply_markup=keyboard
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при редактировании контента: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        await state.clear()
+
+@dp.message(PostStates.waiting_for_auto_content)
+async def process_auto_content(message: types.Message, state: FSMContext):
+    """Обработка контента для автоматизированного поста"""
+    try:
+        # Получаем данные из состояния
+        data = await state.get_data()
+        if not data:
+            logger.error("Данные состояния не найдены")
+            await message.answer("❌ Ошибка: данные не найдены")
+            await state.clear()
+            return
+            
+        edit_post_id = data.get('edit_post_id')
+        
+        # Формируем данные сообщения
+        message_data = {
+            "text": message.text,
+            "caption": message.caption,
+            "message_id": message.message_id,
+            "user_id": message.from_user.id
+        }
+        
+        if message.photo:
+            message_data["photo"] = message.photo[-1].file_id
+        elif message.video:
+            message_data["video"] = message.video.file_id
+        elif message.document:
+            message_data["document"] = {
+                "file_id": message.document.file_id,
+                "file_name": message.document.file_name
+            }
+        
+        if edit_post_id:
+            # Если это редактирование существующего поста
+            try:
+                success = await Database.update_automated_post(edit_post_id, message_data=message_data)
+                if success:
+                    logger.info(f"Контент поста {edit_post_id} успешно обновлен")
+                    await message.answer("✅ Контент поста успешно обновлен!")
+                    # Возвращаемся к меню поста
+                    await message.answer(
+                        "🔄 Возвращаемся к настройкам поста...",
+                        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+                            [types.InlineKeyboardButton(
+                                text="📝 Вернуться к настройкам поста",
+                                callback_data=f"auto_post_menu_{edit_post_id}"
+                            )]
+                        ])
+                    )
+                else:
+                    logger.error(f"Ошибка при обновлении контента поста {edit_post_id}")
+                    await message.answer("❌ Ошибка при обновлении контента")
+            except Exception as e:
+                logger.error(f"Ошибка при сохранении контента: {str(e)}")
+                await message.answer("❌ Ошибка при сохранении контента")
+        else:
+            # Если это создание нового поста
+            await state.update_data(message_data=message_data)
+            await state.set_state(PostStates.waiting_for_auto_times_count)
+            await message.answer(
+                "🔄 Укажите, сколько раз в день нужно отправлять этот пост\n"
+                "Введите число от 1 до 24"
+            )
+            
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Ошибка при обработке контента: {str(e)}")
+        await message.answer("❌ Произошла ошибка при обработке контента")
+        await state.clear()
+
+@dp.message(PostStates.waiting_for_auto_times_count)
+async def process_auto_times_count(message: types.Message, state: FSMContext):
+    """Обработка количества повторений для автоматизированного поста"""
+    try:
+        times_count = int(message.text)
+        if not 1 <= times_count <= 24:
+            raise ValueError
+            
+        data = await state.get_data()
+        edit_post_id = data.get('edit_post_id')
+        
+        await state.update_data(times_count=times_count, times=[], current_time_index=0)
+        
+        # Переходим к вводу первого времени
+        await state.set_state(PostStates.waiting_for_auto_time)
+        await message.answer(
+            "🕒 Укажите время для первой отправки (в формате ЧЧ:ММ)\n"
+            "Например: 14:30"
+        )
+        
+    except ValueError:
+        await message.answer(
+            "❌ Пожалуйста, введите корректное число от 1 до 24"
+        )
+
+@dp.message(PostStates.waiting_for_auto_time)
+async def process_auto_time(message: types.Message, state: FSMContext):
+    """Обработка времени отправки для автоматизированного поста"""
+    time_str = message.text.strip()
+    
+    # Проверяем формат времени
+    if not re.match(r'^([01]?[0-9]|2[0-3]):([0-5][0-9])$', time_str):
+        await message.answer(
+            "❌ Пожалуйста, введите корректное время в формате ЧЧ:ММ\n"
+            "Например: 14:30"
+        )
+        return
+        
+    data = await state.get_data()
+    times = data.get('times', [])
+    times_count = data.get('times_count', 1)
+    current_time_index = data.get('current_time_index', 0)
+    edit_post_id = data.get('edit_post_id')
+    
+    if time_str in times:
+        await message.answer("❌ Это время уже добавлено в расписание")
+        return
+        
+    times.append(time_str)
+    current_time_index += 1
+    await state.update_data(times=times, current_time_index=current_time_index)
+    
+    if current_time_index < times_count:
+        # Запрашиваем следующее время
+        await message.answer(
+            f"🕒 Укажите время для {current_time_index + 1}-й отправки (в формате ЧЧ:ММ)\n"
+            f"Например: 14:30\n\n"
+            f"Добавлено {current_time_index} из {times_count}"
+        )
+        return
+    
+    # Сортируем времена перед сохранением
+    times.sort()
+    
+    if edit_post_id:
+        # Обновляем существующий пост
+        await Database.update_automated_post(edit_post_id, times=times)
+        await message.answer(
+            "✅ Расписание поста успешно обновлено!\n"
+            f"Времена отправки: {', '.join(times)}"
+        )
+        
+        # Возвращаемся к меню поста
+        await message.answer(
+            "🔄 Возвращаемся к настройкам поста...",
+            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+                [types.InlineKeyboardButton(
+                    text="📝 Вернуться к настройкам поста",
+                    callback_data=f"auto_post_menu_{edit_post_id}"
+                )]
+            ])
+        )
+        await state.clear()
+    else:
+        # Создаем новый пост
+        message_data = data.get('message_data')
+        groups = data.get('selected_groups', [])
+        accounts = data.get('selected_accounts', [])
+        
+        post_id = await Database.add_automated_post(
+            message_data=message_data,
+            groups=groups,
+            accounts=accounts,
+            times=times
+        )
+        
+        await message.answer(
+            "✅ Автоматизированный пост успешно создан!\n"
+            f"ID поста: {post_id}\n\n"
+            f"Времена отправки: {', '.join(times)}"
+        )
+        await state.clear()
+
+async def check_automated_posts():
+    """Проверка и отправка автоматизированных постов"""
+    while True:
+        try:
+            # Получаем все активные автоматизированные посты
+            posts = await Database.get_automated_posts()
+            active_posts = [p for p in posts if p['status'] == 'active']
+            
+            if not active_posts:
+                await asyncio.sleep(60)  # Если нет активных постов, проверяем раз в минуту
+                continue
+                
+            current_time = datetime.now().strftime("%H:%M")
+            
+            for post in active_posts:
+                if current_time in post['times']:
+                    logger.info(f"Отправка автоматизированного поста #{post['id']}")
+                    
+                    # Создаем пул для отправки
+                    posting_pool = PostingPool(MAX_THREADS)
+                    
+                    # Получаем аккаунты
+                    accounts = []
+                    for account_id in post['accounts']:
+                        account = await Database.get_account_by_id(account_id)
+                        if account and account['status'] == 'active':
+                            accounts.append(account)
+                    
+                    if not accounts:
+                        logger.error(f"Нет доступных аккаунтов для поста #{post['id']}")
+                        continue
+                    
+                    # Получаем группы
+                    groups = []
+                    for group_id in post['groups']:
+                        group = await Database.get_group_by_id(str(group_id))
+                        if group:
+                            groups.append(group)
+                    
+                    if not groups:
+                        logger.error(f"Нет доступных групп для поста #{post['id']}")
+                        continue
+                    
+                    # Распределяем группы между аккаунтами
+                    groups_per_account = len(groups) // len(accounts)
+                    if groups_per_account == 0:
+                        groups_per_account = 1
+                    
+                    current_account_index = 0
+                    current_group_index = 0
+                    
+                    while current_group_index < len(groups):
+                        account = accounts[current_account_index]
+                        
+                        # Создаем клиент для текущего аккаунта
+                        client = await session_manager.get_client(account['session_file'])
+                        posting_manager = PostingManager(client, Database, bot)
+                        
+                        # Отправляем посты в группы через текущий аккаунт
+                        for _ in range(groups_per_account):
+                            if current_group_index >= len(groups):
+                                break
+                                
+                            group = groups[current_group_index]
+                            await posting_pool.add_posting_task(
+                                posting_manager=posting_manager,
+                                group_id=group['group_id'],
+                                message_data=post['message']
+                            )
+                            current_group_index += 1
+                        
+                        current_account_index = (current_account_index + 1) % len(accounts)
+                    
+                    # Ждем завершения всех отправок
+                    await posting_pool.wait_all()
+                    logger.info(f"Автоматизированный пост #{post['id']} отправлен")
+            
+            # Проверяем каждую минуту
+            await asyncio.sleep(60)
+            
+        except Exception as e:
+            logger.exception(f"Ошибка при проверке автоматизированных постов: {str(e)}")
+            await asyncio.sleep(60)
+
+@dp.message(lambda m: m.text == "⚙️ Настройка автопостов")
+async def automated_posts_settings(message: types.Message):
+    """Настройки автоматизированных постов"""
+    # Получаем все автоматизированные посты
+    posts = await Database.get_automated_posts()
+    
+    if not posts:
+        await message.answer(
+            "📝 У вас нет автоматизированных постов.\n"
+            "Создайте новый пост в разделе '🤖 Автоматизация постов'"
+        )
+        return
+        
+    # Создаем клавиатуру со списком постов
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=f"Пост #{post['id']} ({len(post['times'])} раз в день)",
+                    callback_data=f"auto_post_menu_{post['id']}"
+                )
+            ] for post in posts
+        ]
+    )
+    
+    await message.answer(
+        "📋 Список автоматизированных постов\n"
+        "Выберите пост для управления:",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data.startswith('auto_post_menu_'))
+async def auto_post_menu(callback: types.CallbackQuery):
+    """Меню управления автоматизированным постом"""
+    post_id = int(callback.data.split('_')[3])
+    post = await Database.get_automated_post_by_id(post_id)
+    
+    if not post:
+        await callback.answer("❌ Пост не найден", show_alert=True)
+        return
+        
+    # Получаем информацию о группах и аккаунтах
+    groups = await Database.get_active_groups()
+    accounts = await Database.get_active_accounts()
+    
+    group_names = [
+        group['title'] for group in groups 
+        if group['id'] in post['groups']
+    ]
+    account_phones = [
+        f"+{account['phone']}" for account in accounts 
+        if account['id'] in post['accounts']
+    ]
+    
+    # Создаем клавиатуру
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text="📝 Изменить контент",
+                    callback_data=f"edit_auto_content_{post_id}"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="👥 Изменить группы",
+                    callback_data=f"edit_auto_groups_{post_id}"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="👤 Изменить аккаунты",
+                    callback_data=f"edit_auto_accounts_{post_id}"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="🕒 Изменить расписание",
+                    callback_data=f"edit_auto_schedule_{post_id}"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="⏸ Приостановить" if post['status'] == 'active' else "▶️ Возобновить",
+                    callback_data=f"toggle_auto_post_{post_id}"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="❌ Удалить пост",
+                    callback_data=f"delete_auto_post_{post_id}"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="◀️ Назад к списку",
+                    callback_data="auto_posts_list"
+                )
+            ]
+        ]
+    )
+    
+    # Формируем текст сообщения
+    message_text = (
+        f"📝 Автоматизированный пост #{post_id}\n\n"
+        f"📢 Группы ({len(group_names)}):\n"
+        f"{chr(10).join('- ' + name for name in group_names)}\n\n"
+        f"👤 Аккаунты ({len(account_phones)}):\n"
+        f"{chr(10).join('- ' + phone for phone in account_phones)}\n\n"
+        f"🕒 Времена отправки ({len(post['times'])}):\n"
+        f"{chr(10).join('- ' + time for time in sorted(post['times']))}\n\n"
+        f"📊 Статус: {'✅ Активен' if post['status'] == 'active' else '⏸ Приостановлен'}"
+    )
+    
+    await callback.message.edit_text(
+        message_text,
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data.startswith('toggle_auto_post_'))
+async def toggle_auto_post(callback: types.CallbackQuery):
+    """Приостановка/возобновление автоматизированного поста"""
+    post_id = int(callback.data.split('_')[3])
+    post = await Database.get_automated_post_by_id(post_id)
+    
+    if not post:
+        await callback.answer("❌ Пост не найден", show_alert=True)
+        return
+        
+    new_status = 'paused' if post['status'] == 'active' else 'active'
+    await Database.update_automated_post(post_id, status=new_status)
+    
+    action = "приостановлен" if new_status == 'paused' else "возобновлен"
+    await callback.answer(f"✅ Пост успешно {action}", show_alert=True)
+    
+    # Обновляем меню поста
+    await auto_post_menu(callback)
+
+@dp.callback_query(lambda c: c.data.startswith('delete_auto_post_'))
+async def delete_auto_post(callback: types.CallbackQuery):
+    """Удаление автоматизированного поста"""
+    post_id = int(callback.data.split('_')[3])
+    post = await Database.get_automated_post_by_id(post_id)
+    
+    if not post:
+        await callback.answer("❌ Пост не найден", show_alert=True)
+        return
+        
+    # Создаем клавиатуру для подтверждения
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text="✅ Да, удалить",
+                    callback_data=f"confirm_delete_auto_{post_id}"
+                ),
+                types.InlineKeyboardButton(
+                    text="❌ Отмена",
+                    callback_data=f"auto_post_menu_{post_id}"
+                )
+            ]
+        ]
+    )
+    
+    await callback.message.edit_text(
+        f"⚠️ Вы действительно хотите удалить автоматизированный пост #{post_id}?",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data.startswith('confirm_delete_auto_'))
+async def confirm_delete_auto_post(callback: types.CallbackQuery):
+    """Подтверждение удаления автоматизированного поста"""
+    post_id = int(callback.data.split('_')[3])
+    
+    await Database.delete_automated_post(post_id)
+    await callback.answer("✅ Пост успешно удален", show_alert=True)
+    
+    # Возвращаемся к списку постов
+    await automated_posts_settings(callback.message)
+
+@dp.callback_query(lambda c: c.data == "auto_posts_list")
+async def back_to_auto_posts_list(callback: types.CallbackQuery):
+    """Возврат к списку автоматизированных постов"""
+    await automated_posts_settings(callback.message)
+
+@dp.callback_query(PostStates.waiting_for_auto_groups, lambda c: c.data.startswith('select_group_'))
+async def select_auto_group(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик выбора группы для автоматизированного поста"""
+    group_id = int(callback.data.split('_')[2])
+    
+    # Получаем текущие выбранные группы
+    data = await state.get_data()
+    selected_groups = data.get('selected_groups', [])
+    
+    # Добавляем или удаляем группу из списка
+    if group_id in selected_groups:
+        selected_groups.remove(group_id)
+    else:
+        selected_groups.append(group_id)
+    
+    # Сохраняем обновленный список
+    await state.update_data(selected_groups=selected_groups)
+    
+    # Обновляем клавиатуру
+    groups = await Database.get_active_groups()
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=f"{'✅' if group['id'] in selected_groups else '⭕️'} {group['title']}",
+                    callback_data=f"select_group_{group['id']}"
+                )
+            ] for group in groups
+        ] + [
+            [
+                types.InlineKeyboardButton(
+                    text="✅ Подтвердить выбор",
+                    callback_data="confirm_auto_groups"
+                )
+            ]
+        ]
+    )
+    
+    # Обновляем сообщение
+    await callback.message.edit_text(
+        f"Выберите группы для автопостинга\n"
+        f"Выбрано: {len(selected_groups)}",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(PostStates.waiting_for_auto_groups, lambda c: c.data == "confirm_auto_groups")
+async def confirm_auto_groups(callback: types.CallbackQuery, state: FSMContext):
+    """Подтверждение выбора групп для автоматизированного поста"""
+    data = await state.get_data()
+    selected_groups = data.get('selected_groups', [])
+    
+    if not selected_groups:
+        await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
+        return
+    
+    # Переходим к выбору аккаунтов
+    await state.set_state(PostStates.waiting_for_auto_accounts)
+    
+    # Получаем список активных аккаунтов
+    accounts = await Database.get_active_accounts()
+    if not accounts:
+        await callback.message.edit_text(
+            "❌ У вас нет активных аккаунтов.\n"
+            "Сначала добавьте хотя бы один аккаунт!"
+        )
+        await state.clear()
+        return
+    
+    # Создаем клавиатуру с аккаунтами
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=f"⭕️ {account['phone']}",
+                    callback_data=f"select_account_{account['id']}"
+                )
+            ] for account in accounts
+        ]
+    )
+    
+    await callback.message.edit_text(
+        "Выберите аккаунты для отправки:\n"
+        "Нажмите на аккаунт, чтобы выбрать его.",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(PostStates.waiting_for_auto_accounts, lambda c: c.data.startswith('select_account_'))
+async def select_auto_account(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик выбора аккаунта для автоматизированного поста"""
+    account_id = int(callback.data.split('_')[2])
+    data = await state.get_data()
+    selected_accounts = data.get('selected_accounts', [])
+    
+    if account_id in selected_accounts:
+        selected_accounts.remove(account_id)
+    else:
+        selected_accounts.append(account_id)
+        
+    await state.update_data(selected_accounts=selected_accounts)
+    
+    # Обновляем клавиатуру
+    accounts = await Database.get_active_accounts()
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=f"{'✅' if account['id'] in selected_accounts else '⭕️'} {account['phone']}",
+                    callback_data=f"select_account_{account['id']}"
+                )
+            ] for account in accounts
+        ] + [
+            [
+                types.InlineKeyboardButton(
+                    text="✅ Подтвердить выбор",
+                    callback_data="confirm_auto_accounts"
+                )
+            ]
+        ]
+    )
+    
+    await callback.message.edit_text(
+        f"Выберите аккаунты для автопостинга\n"
+        f"Выбрано: {len(selected_accounts)}",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(PostStates.waiting_for_auto_accounts, lambda c: c.data == "confirm_auto_accounts")
+async def confirm_auto_accounts(callback: types.CallbackQuery, state: FSMContext):
+    """Подтверждение выбора аккаунтов для автоматизированного поста"""
+    data = await state.get_data()
+    selected_accounts = data.get('selected_accounts', [])
+    
+    if not selected_accounts:
+        await callback.answer("❌ Выберите хотя бы один аккаунт!", show_alert=True)
+        return
+        
+    # Переходим к вводу контента
+    await state.set_state(PostStates.waiting_for_auto_content)
+    await callback.message.edit_text(
+        "📝 Отправьте контент для автоматизированного поста\n"
+        "Это может быть текст, фото, видео или файл"
+    )
+
+@dp.callback_query(lambda c: c.data.startswith('edit_auto_groups_'))
+async def edit_auto_groups(callback: types.CallbackQuery, state: FSMContext):
+    """Редактирование групп автоматизированного поста"""
+    try:
+        # Очищаем предыдущее состояние
+        await state.clear()
+        
+        # Получаем ID поста
+        post_id = int(callback.data.split('_')[3])
+        post = await Database.get_automated_post_by_id(post_id)
+        
+        if not post:
+            logger.error(f"Пост с ID {post_id} не найден")
+            await callback.answer("❌ Пост не найден", show_alert=True)
+            return
+            
+        # Сохраняем ID поста и текущие группы
+        await state.update_data(
+            edit_post_id=post_id,
+            selected_groups=post.get('groups', []).copy()
+        )
+        
+        logger.info(f"Начато редактирование групп для поста {post_id}")
+        
+        # Получаем список групп и создаем клавиатуру
+        groups = await Database.get_active_groups()
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if group['id'] in post.get('groups', []) else '⭕️'} {group['title']}",
+                        callback_data=f"select_edit_group_{group['id']}"
+                    )
+                ] for group in groups
+            ] + [
+                [
+                    types.InlineKeyboardButton(
+                        text="✅ Подтвердить выбор",
+                        callback_data="confirm_edit_groups"
+                    ),
+                    types.InlineKeyboardButton(
+                        text="❌ Отмена",
+                        callback_data=f"auto_post_menu_{post_id}"
+                    )
+                ]
+            ]
+        )
+        
+        await callback.message.edit_text(
+            f"Выберите группы для поста\n"
+            f"Выбрано: {len(post.get('groups', []))}",
+            reply_markup=keyboard
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при редактировании групп: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        await state.clear()
+
+@dp.callback_query(lambda c: c.data.startswith('edit_auto_accounts_'))
+async def edit_auto_accounts(callback: types.CallbackQuery, state: FSMContext):
+    """Редактирование аккаунтов автоматизированного поста"""
+    try:
+        # Очищаем предыдущее состояние
+        await state.clear()
+        
+        # Получаем ID поста
+        post_id = int(callback.data.split('_')[3])
+        post = await Database.get_automated_post_by_id(post_id)
+        
+        if not post:
+            logger.error(f"Пост с ID {post_id} не найден")
+            await callback.answer("❌ Пост не найден", show_alert=True)
+            return
+            
+        # Сохраняем ID поста и текущие аккаунты
+        await state.update_data(
+            edit_post_id=post_id,
+            selected_accounts=post.get('accounts', []).copy()
+        )
+        
+        logger.info(f"Начато редактирование аккаунтов для поста {post_id}")
+        
+        # Получаем список аккаунтов и создаем клавиатуру
+        accounts = await Database.get_active_accounts()
+        if not accounts:
+            await callback.answer("❌ Нет доступных аккаунтов", show_alert=True)
+            return
+            
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if account['id'] in post.get('accounts', []) else '⭕️'} {account['phone']}",
+                        callback_data=f"select_edit_account_{account['id']}"
+                    )
+                ] for account in accounts
+            ] + [
+                [
+                    types.InlineKeyboardButton(
+                        text="✅ Подтвердить выбор",
+                        callback_data="confirm_edit_accounts"
+                    ),
+                    types.InlineKeyboardButton(
+                        text="❌ Отмена",
+                        callback_data=f"auto_post_menu_{post_id}"
+                    )
+                ]
+            ]
+        )
+        
+        await callback.message.edit_text(
+            f"Выберите аккаунты для поста\n"
+            f"Выбрано: {len(post.get('accounts', []))}",
+            reply_markup=keyboard
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при редактировании аккаунтов: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        await state.clear()
+
+@dp.callback_query(lambda c: c.data.startswith('edit_auto_schedule_'))
+async def edit_auto_schedule(callback: types.CallbackQuery, state: FSMContext):
+    """Редактирование расписания автоматизированного поста"""
+    post_id = int(callback.data.split('_')[3])
+    post = await Database.get_automated_post_by_id(post_id)
+    
+    if not post:
+        await callback.answer("❌ Пост не найден", show_alert=True)
+        return
+        
+    # Сохраняем ID поста и текущие данные
+    await state.update_data(
+        edit_post_id=post_id,
+        message_data=post['message'],
+        selected_groups=post['groups'],
+        selected_accounts=post['accounts']
+    )
+    
+    # Переходим к вводу количества отправок
+    await state.set_state(PostStates.waiting_for_auto_times_count)
+    await callback.message.edit_text(
+        "🔄 Укажите, сколько раз в день нужно отправлять этот пост\n"
+        "Введите число от 1 до 24"
+    )
+
+@dp.callback_query(lambda c: c.data == "confirm_edit_groups")
+async def confirm_edit_groups(callback: types.CallbackQuery, state: FSMContext):
+    """Подтверждение изменения групп"""
+    try:
+        # Получаем данные из состояния
+        data = await state.get_data()
+        if not data:
+            logger.error("Данные состояния не найдены")
+            await callback.answer("❌ Ошибка: данные не найдены", show_alert=True)
+            await state.clear()
+            return
+
+        post_id = data.get('edit_post_id')
+        selected_groups = data.get('selected_groups', [])
+
+        # Проверяем наличие post_id
+        if not post_id:
+            logger.error("post_id не найден в состоянии")
+            await callback.answer("❌ Ошибка: пост не найден", show_alert=True)
+            await state.clear()
+            return
+
+        # Проверяем наличие выбранных групп
+        if not selected_groups:
+            await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
+            return
+
+        # Получаем пост для проверки
+        post = await Database.get_automated_post_by_id(post_id)
+        if not post:
+            logger.error(f"Пост с ID {post_id} не найден в базе данных")
+            await callback.answer("❌ Ошибка: пост не найден в базе данных", show_alert=True)
+            await state.clear()
+            return
+
+        # Обновляем группы в базе данных
+        try:
+            success = await Database.update_automated_post(post_id, groups=selected_groups)
+            
+            if success:
+                logger.info(f"Группы успешно обновлены для поста {post_id}. Новые группы: {selected_groups}")
+                # Очищаем состояние
+                await state.clear()
+                # Возвращаемся к меню поста с обновленными данными
+                await callback.answer("✅ Группы успешно обновлены", show_alert=True)
+                await auto_post_menu(callback)
+            else:
+                logger.error(f"Ошибка при обновлении групп для поста {post_id}")
+                await callback.answer("❌ Ошибка при обновлении групп", show_alert=True)
+                await state.clear()
+        except Exception as db_error:
+            logger.error(f"Ошибка базы данных при обновлении групп: {str(db_error)}")
+            await callback.answer("❌ Ошибка при сохранении изменений", show_alert=True)
+            await state.clear()
+            
+    except Exception as e:
+        logger.error(f"Ошибка при подтверждении групп: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        await state.clear()
+
+@dp.callback_query(lambda c: c.data == "confirm_edit_accounts")
+async def confirm_edit_accounts(callback: types.CallbackQuery, state: FSMContext):
+    """Подтверждение изменения аккаунтов"""
+    try:
+        # Получаем данные из состояния
+        data = await state.get_data()
+        if not data:
+            logger.error("Данные состояния не найдены")
+            await callback.answer("❌ Ошибка: данные не найдены", show_alert=True)
+            await state.clear()
+            return
+
+        post_id = data.get('edit_post_id')
+        selected_accounts = data.get('selected_accounts', [])
+
+        # Проверяем наличие post_id
+        if not post_id:
+            logger.error("post_id не найден в состоянии")
+            await callback.answer("❌ Ошибка: пост не найден", show_alert=True)
+            await state.clear()
+            return
+
+        # Проверяем наличие выбранных аккаунтов
+        if not selected_accounts:
+            await callback.answer("❌ Выберите хотя бы один аккаунт!", show_alert=True)
+            return
+
+        # Получаем пост для проверки
+        post = await Database.get_automated_post_by_id(post_id)
+        if not post:
+            logger.error(f"Пост с ID {post_id} не найден в базе данных")
+            await callback.answer("❌ Ошибка: пост не найден в базе данных", show_alert=True)
+            await state.clear()
+            return
+
+        # Обновляем аккаунты в базе данных
+        try:
+            success = await Database.update_automated_post(post_id, accounts=selected_accounts)
+            
+            if success:
+                logger.info(f"Аккаунты успешно обновлены для поста {post_id}. Новые аккаунты: {selected_accounts}")
+                # Очищаем состояние
+                await state.clear()
+                # Возвращаемся к меню поста с обновленными данными
+                await callback.answer("✅ Аккаунты успешно обновлены", show_alert=True)
+                await auto_post_menu(callback)
+            else:
+                logger.error(f"Ошибка при обновлении аккаунтов для поста {post_id}")
+                await callback.answer("❌ Ошибка при обновлении аккаунтов", show_alert=True)
+                await state.clear()
+        except Exception as db_error:
+            logger.error(f"Ошибка базы данных при обновлении аккаунтов: {str(db_error)}")
+            await callback.answer("❌ Ошибка при сохранении изменений", show_alert=True)
+            await state.clear()
+            
+    except Exception as e:
+        logger.error(f"Ошибка при подтверждении аккаунтов: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        await state.clear()
+
+@dp.callback_query(lambda c: c.data.startswith('select_edit_group_'))
+async def select_edit_group(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор группы при редактировании"""
+    try:
+        # Получаем ID группы из callback data
+        group_id = int(callback.data.split('_')[3])
+        
+        # Получаем данные из состояния
+        data = await state.get_data()
+        if not data:
+            logger.error("Данные состояния не найдены")
+            await callback.answer("❌ Ошибка: данные не найдены", show_alert=True)
+            await state.clear()
+            return
+            
+        post_id = data.get('edit_post_id')
+        if not post_id:
+            logger.error("post_id не найден в состоянии")
+            await callback.answer("❌ Ошибка: пост не найден", show_alert=True)
+            await state.clear()
+            return
+            
+        selected_groups = data.get('selected_groups', []).copy()
+        
+        # Добавляем или удаляем группу из списка
+        if group_id in selected_groups:
+            selected_groups.remove(group_id)
+        else:
+            selected_groups.append(group_id)
+            
+        # Сохраняем обновленный список
+        await state.update_data(selected_groups=selected_groups)
+        
+        # Получаем список всех групп
+        groups = await Database.get_active_groups()
+        if not groups:
+            logger.error("Нет доступных групп")
+            await callback.answer("❌ Ошибка: нет доступных групп", show_alert=True)
+            await state.clear()
+            return
+            
+        # Создаем клавиатуру
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if group['id'] in selected_groups else '⭕️'} {group['title']}",
+                        callback_data=f"select_edit_group_{group['id']}"
+                    )
+                ] for group in groups
+            ] + [
+                [
+                    types.InlineKeyboardButton(
+                        text="✅ Подтвердить выбор",
+                        callback_data="confirm_edit_groups"
+                    ),
+                    types.InlineKeyboardButton(
+                        text="❌ Отмена",
+                        callback_data=f"auto_post_menu_{post_id}"
+                    )
+                ]
+            ]
+        )
+        
+        # Обновляем сообщение
+        await callback.message.edit_text(
+            f"Выберите группы для поста\n"
+            f"Выбрано: {len(selected_groups)}",
+            reply_markup=keyboard
+        )
+        await callback.answer()
+        
+    except ValueError as ve:
+        logger.error(f"Ошибка при парсинге ID группы: {str(ve)}")
+        await callback.answer("❌ Некорректный ID группы", show_alert=True)
+        await state.clear()
+    except Exception as e:
+        logger.error(f"Ошибка при выборе группы: {str(e)}")
+        await callback.answer("❌ Ошибка при выборе группы", show_alert=True)
+        await state.clear()
+
+@dp.callback_query(lambda c: c.data.startswith('select_edit_account_'))
+async def select_edit_account(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор аккаунта при редактировании"""
+    try:
+        # Получаем ID аккаунта из callback data
+        account_id = int(callback.data.split('_')[3])
+        
+        # Получаем данные из состояния
+        data = await state.get_data()
+        if not data:
+            logger.error("Данные состояния не найдены")
+            await callback.answer("❌ Ошибка: данные не найдены", show_alert=True)
+            await state.clear()
+            return
+            
+        post_id = data.get('edit_post_id')
+        if not post_id:
+            logger.error("post_id не найден в состоянии")
+            await callback.answer("❌ Ошибка: пост не найден", show_alert=True)
+            await state.clear()
+            return
+            
+        selected_accounts = data.get('selected_accounts', []).copy()
+        
+        # Добавляем или удаляем аккаунт из списка
+        if account_id in selected_accounts:
+            selected_accounts.remove(account_id)
+        else:
+            selected_accounts.append(account_id)
+            
+        # Сохраняем обновленный список
+        await state.update_data(selected_accounts=selected_accounts)
+        
+        # Получаем список всех аккаунтов
+        accounts = await Database.get_active_accounts()
+        if not accounts:
+            logger.error("Нет доступных аккаунтов")
+            await callback.answer("❌ Ошибка: нет доступных аккаунтов", show_alert=True)
+            await state.clear()
+            return
+            
+        # Создаем клавиатуру
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if account['id'] in selected_accounts else '⭕️'} {account['phone']}",
+                        callback_data=f"select_edit_account_{account['id']}"
+                    )
+                ] for account in accounts
+            ] + [
+                [
+                    types.InlineKeyboardButton(
+                        text="✅ Подтвердить выбор",
+                        callback_data="confirm_edit_accounts"
+                    ),
+                    types.InlineKeyboardButton(
+                        text="❌ Отмена",
+                        callback_data=f"auto_post_menu_{post_id}"
+                    )
+                ]
+            ]
+        )
+        
+        # Обновляем сообщение
+        await callback.message.edit_text(
+            f"Выберите аккаунты для поста\n"
+            f"Выбрано: {len(selected_accounts)}",
+            reply_markup=keyboard
+        )
+        await callback.answer()
+        
+    except ValueError as ve:
+        logger.error(f"Ошибка при парсинге ID аккаунта: {str(ve)}")
+        await callback.answer("❌ Некорректный ID аккаунта", show_alert=True)
+        await state.clear()
+    except Exception as e:
+        logger.error(f"Ошибка при выборе аккаунта: {str(e)}")
+        await callback.answer("❌ Ошибка при выборе аккаунта", show_alert=True)
+        await state.clear()
+
 async def main():
     # Инициализация базы данных
     await init_db()
     
-    # Запускаем проверку отложенных постов
+    # Запускаем проверку отложенных и автоматизированных постов
     asyncio.create_task(check_scheduled_posts())
+    asyncio.create_task(check_automated_posts())
     
     # Запуск бота
     await dp.start_polling(bot)
