@@ -1,5 +1,26 @@
 # 🚀 Telegram Autoposting Bot
 
+## 📢 Latest Updates
+
+### 📦 Bulk Groups
+- Create groups of channels for easier management
+- Send posts to multiple channels with one click
+- Flexible group editing and management
+- Smart group selection system
+- Automatic group status tracking
+
+### 🤖 Automated Posts
+- Schedule posts for daily sending
+- Multiple sending times per day
+- Smart account rotation
+- Cached media files for faster sending
+- Real-time notifications about successful sends
+- Full control over automated posts:
+  - Edit content anytime
+  - Modify groups and accounts
+  - Adjust schedule
+  - Pause/resume posting
+
 ## 🌟 Key Features
 
 ### 👥 Account Management

@@ -20,6 +20,7 @@ import aiofiles
 import aiohttp
 from loguru import logger
 from aiogram import Bot
+import hashlib
 
 class PostingManager:
     def __init__(self, client: TelegramClient, db: Database, bot: Bot):
@@ -227,6 +228,34 @@ class PostingManager:
             logger.error(f"Ошибка при проверке статуса аккаунта: {str(e)}")
             return True, "unknown"  # В случае ошибки позволяем продолжить
 
+    async def get_media_hash(self, file_id: str) -> str:
+        """Генерирует хеш для медиафайла"""
+        return hashlib.md5(file_id.encode()).hexdigest()
+
+    async def get_cached_media_path(self, file_id: str, file_type: str) -> Optional[str]:
+        """Проверяет наличие кешированного медиафайла"""
+        media_hash = await self.get_media_hash(file_id)
+        cached_path = f"automated_media/{media_hash}.{file_type}"
+        return cached_path if os.path.exists(cached_path) else None
+
+    async def cache_media_file(self, file_id: str, file_type: str, temp_path: str) -> Optional[str]:
+        """Кеширует медиафайл для повторного использования"""
+        try:
+            os.makedirs("automated_media", exist_ok=True)
+            media_hash = await self.get_media_hash(file_id)
+            cached_path = f"automated_media/{media_hash}.{file_type}"
+            
+            if not os.path.exists(cached_path):
+                # Копируем файл в кеш
+                with open(temp_path, 'rb') as src, open(cached_path, 'wb') as dst:
+                    dst.write(src.read())
+                logger.info(f"Медиафайл {file_id} успешно кеширован")
+            
+            return cached_path
+        except Exception as e:
+            logger.error(f"Ошибка при кешировании медиафайла {file_id}: {str(e)}")
+            return None
+
     async def send_post(
         self,
         group_id: str,
@@ -291,20 +320,26 @@ class PostingManager:
                 if 'photo' in message_data:
                     logger.info("[Этап 3/5] Подготовка фото")
                     try:
-                        # Скачиваем фото во временный файл
-                        photo_path = f"temp_media/photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-                        file = await self.bot.get_file(message_data['photo'])
-                        await self.bot.download_file(file.file_path, photo_path)
+                        # Проверяем наличие кешированного файла
+                        cached_path = await self.get_cached_media_path(message_data['photo'], 'jpg')
+                        
+                        if not cached_path:
+                            # Если нет в кеше, скачиваем во временный файл
+                            temp_path = f"temp_media/photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+                            file = await self.bot.get_file(message_data['photo'])
+                            await self.bot.download_file(file.file_path, temp_path)
+                            
+                            # Кешируем файл
+                            cached_path = await self.cache_media_file(message_data['photo'], 'jpg', temp_path)
+                            # Удаляем временный файл
+                            os.remove(temp_path)
                         
                         # Отправляем сообщение с фото
                         result = await self.client.send_file(
                             entity,
-                            photo_path,
+                            cached_path,
                             caption=text
                         )
-                        
-                        # Удаляем временный файл
-                        os.remove(photo_path)
                         
                     except Exception as e:
                         logger.error(f"[Этап 4/5] ❌ Ошибка при отправке фото: {str(e)}")
@@ -313,20 +348,26 @@ class PostingManager:
                 elif 'video' in message_data:
                     logger.info("[Этап 3/5] Подготовка видео")
                     try:
-                        # Скачиваем видео во временный файл
-                        video_path = f"temp_media/video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-                        file = await self.bot.get_file(message_data['video'])
-                        await self.bot.download_file(file.file_path, video_path)
+                        # Проверяем наличие кешированного файла
+                        cached_path = await self.get_cached_media_path(message_data['video'], 'mp4')
+                        
+                        if not cached_path:
+                            # Если нет в кеше, скачиваем во временный файл
+                            temp_path = f"temp_media/video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+                            file = await self.bot.get_file(message_data['video'])
+                            await self.bot.download_file(file.file_path, temp_path)
+                            
+                            # Кешируем файл
+                            cached_path = await self.cache_media_file(message_data['video'], 'mp4', temp_path)
+                            # Удаляем временный файл
+                            os.remove(temp_path)
                         
                         # Отправляем сообщение с видео
                         result = await self.client.send_file(
                             entity,
-                            video_path,
+                            cached_path,
                             caption=text
                         )
-                        
-                        # Удаляем временный файл
-                        os.remove(video_path)
                         
                     except Exception as e:
                         logger.error(f"[Этап 4/5] ❌ Ошибка при отправке видео: {str(e)}")
@@ -335,20 +376,29 @@ class PostingManager:
                 elif 'document' in message_data:
                     logger.info("[Этап 3/5] Подготовка документа")
                     try:
-                        # Скачиваем документ во временный файл
-                        doc_path = f"temp_media/doc_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                        file = await self.bot.get_file(message_data['document']['file_id'])
-                        await self.bot.download_file(file.file_path, doc_path)
+                        # Получаем расширение из оригинального имени файла
+                        file_ext = message_data['document'].get('file_name', '').split('.')[-1] if '.' in message_data['document'].get('file_name', '') else 'doc'
+                        
+                        # Проверяем наличие кешированного файла
+                        cached_path = await self.get_cached_media_path(message_data['document']['file_id'], file_ext)
+                        
+                        if not cached_path:
+                            # Если нет в кеше, скачиваем во временный файл
+                            temp_path = f"temp_media/doc_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_ext}"
+                            file = await self.bot.get_file(message_data['document']['file_id'])
+                            await self.bot.download_file(file.file_path, temp_path)
+                            
+                            # Кешируем файл
+                            cached_path = await self.cache_media_file(message_data['document']['file_id'], file_ext, temp_path)
+                            # Удаляем временный файл
+                            os.remove(temp_path)
                         
                         # Отправляем сообщение с документом
                         result = await self.client.send_file(
                             entity,
-                            doc_path,
+                            cached_path,
                             caption=text
                         )
-                        
-                        # Удаляем временный файл
-                        os.remove(doc_path)
                         
                     except Exception as e:
                         logger.error(f"[Этап 4/5] ❌ Ошибка при отправке документа: {str(e)}")

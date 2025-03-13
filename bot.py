@@ -75,6 +75,8 @@ class SettingsStates(StatesGroup):
 
 class GroupStates(StatesGroup):
     waiting_for_group = State()
+    waiting_for_bulk_group_name = State()
+    waiting_for_bulk_group_selection = State()
 
 # Инициализация менеджеров
 session_manager = SessionManager()
@@ -589,7 +591,7 @@ async def process_post_content(message: types.Message, state: FSMContext):
             'text': message.text,
             'caption': message.caption,
             'message_id': message.message_id,
-            'user_id': message.from_user.id  # Добавляем ID пользователя
+            'user_id': message.from_user.id
         }
         
         # Если есть фото
@@ -610,43 +612,167 @@ async def process_post_content(message: types.Message, state: FSMContext):
         # Сохраняем данные в состояние
         await state.update_data(message_data=message_data)
         
-        # Переходим к выбору групп
-        groups = await Database.get_groups()
+        # Получаем список групп и оптомгрупп
+        groups = await Database.get_active_groups()
+        bulk_groups = await Database.get_bulk_groups()
+        
         if not groups:
             await message.answer("❌ Нет доступных групп для отправки")
             await state.clear()
             return
             
-        keyboard = types.InlineKeyboardMarkup(
-            inline_keyboard=[
+        # Создаем клавиатуру с группами и оптомгруппами
+        keyboard = []
+        
+        # Добавляем оптомгруппы, если они есть
+        if bulk_groups:
+            keyboard.extend([
                 [
                     types.InlineKeyboardButton(
-                        text=group['title'],
-                        callback_data=f"select_group_{group['id']}"
+                        text=f"📦 {bg['name']} ({len(bg['groups'])} групп)",
+                        callback_data=f"select_bulk_group_post_{bg['id']}"
                     )
-                ] for group in groups
-            ] + [
-                [
-                    types.InlineKeyboardButton(
-                        text="✅ Подтвердить выбор",
-                        callback_data="confirm_groups"
-                    )
-                ]
-            ]
-        )
+                ] for bg in bulk_groups
+            ])
+            # Добавляем разделитель
+            keyboard.append([
+                types.InlineKeyboardButton(
+                    text="➖ или выберите отдельные группы ➖",
+                    callback_data="separator"
+                )
+            ])
+        
+        # Добавляем отдельные группы
+        keyboard.extend([
+            [
+                types.InlineKeyboardButton(
+                    text=group['title'],
+                    callback_data=f"select_group_{group['id']}"
+                )
+            ] for group in groups
+        ])
+        
+        # Добавляем кнопку подтверждения
+        keyboard.append([
+            types.InlineKeyboardButton(
+                text="✅ Подтвердить выбор",
+                callback_data="confirm_groups"
+            )
+        ])
+        
+        markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard)
         
         await state.update_data(selected_groups=[])
         await state.set_state(PostStates.waiting_for_groups)
         await message.answer(
             "📢 Выберите группы для отправки поста\n"
-            "Можно выбрать несколько групп",
-            reply_markup=keyboard
+            "Можно выбрать отдельные группы или оптомгруппу",
+            reply_markup=markup
         )
         
     except Exception as e:
         logger.exception(f"Ошибка при обработке контента поста: {str(e)}")
         await message.answer("❌ Произошла ошибка при обработке поста")
         await state.clear()
+
+@dp.callback_query(lambda c: c.data.startswith('select_bulk_group_post_'))
+async def select_bulk_group_for_post(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        bulk_group_id = int(callback.data.split('_')[4])
+        bulk_group = await Database.get_bulk_group_by_id(bulk_group_id)
+        
+        if not bulk_group:
+            await callback.answer("❌ Оптомгруппа не найдена", show_alert=True)
+            return
+            
+        # Получаем текущие выбранные группы
+        data = await state.get_data()
+        selected_groups = data.get('selected_groups', [])
+        
+        # Получаем ID групп из оптомгруппы
+        bulk_group_ids = [g['id'] for g in bulk_group['groups']]
+        
+        # Проверяем, выбрана ли эта оптомгруппа
+        is_selected = all(g_id in selected_groups for g_id in bulk_group_ids)
+        
+        # Удаляем все группы из других оптомгрупп
+        bulk_groups = await Database.get_bulk_groups()
+        other_bulk_group_ids = []
+        for bg in bulk_groups:
+            if bg['id'] != bulk_group_id:
+                other_bulk_group_ids.extend(g['id'] for g in bg['groups'])
+                
+        # Очищаем выбранные группы от групп из других оптомгрупп
+        selected_groups = [g for g in selected_groups if g not in other_bulk_group_ids]
+        
+        if is_selected:
+            # Если оптомгруппа уже выбрана - удаляем её группы
+            selected_groups = [g for g in selected_groups if g not in bulk_group_ids]
+        else:
+            # Если не выбрана - добавляем её группы
+            for g_id in bulk_group_ids:
+                if g_id not in selected_groups:
+                    selected_groups.append(g_id)
+            
+        await state.update_data(selected_groups=selected_groups)
+        
+        # Обновляем клавиатуру
+        groups = await Database.get_active_groups()
+        
+        keyboard = []
+        
+        # Добавляем оптомгруппы
+        if bulk_groups:
+            keyboard.extend([
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if all(g['id'] in selected_groups for g in bg['groups']) else '📦'} "
+                             f"{bg['name']} ({len(bg['groups'])} групп)",
+                        callback_data=f"select_bulk_group_post_{bg['id']}"
+                    )
+                ] for bg in bulk_groups
+            ])
+            keyboard.append([
+                types.InlineKeyboardButton(
+                    text="➖ или выберите отдельные группы ➖",
+                    callback_data="separator"
+                )
+            ])
+        
+        # Добавляем отдельные группы
+        keyboard.extend([
+            [
+                types.InlineKeyboardButton(
+                    text=f"{'✅' if group['id'] in selected_groups else '⭕️'} {group['title']}",
+                    callback_data=f"select_group_{group['id']}"
+                )
+            ] for group in groups
+        ])
+        
+        # Добавляем кнопку подтверждения
+        keyboard.append([
+            types.InlineKeyboardButton(
+                text="✅ Подтвердить выбор",
+                callback_data="confirm_auto_groups"
+            )
+        ])
+        
+        markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard)
+        
+        await callback.message.edit_text(
+            f"📢 Выберите группы для отправки поста\n"
+            f"Выбрано: {len(selected_groups)} групп",
+            reply_markup=markup
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при выборе оптомгруппы: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+
+@dp.callback_query(lambda c: c.data == "separator")
+async def separator_callback(callback: types.CallbackQuery):
+    # Игнорируем нажатие на разделитель
+    await callback.answer()
 
 @dp.callback_query(PostStates.waiting_for_groups, lambda c: c.data.startswith('select_group_'))
 async def select_group(callback: types.CallbackQuery, state: FSMContext):
@@ -663,30 +789,58 @@ async def select_group(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(selected_groups=selected_groups)
         
         # Обновляем клавиатуру
-        groups = await Database.get_groups()
-        keyboard = types.InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    types.InlineKeyboardButton(
-                        text=f"{'✅ ' if group['id'] in selected_groups else ''}{group['title']}",
-                        callback_data=f"select_group_{group['id']}"
-                    )
-                ] for group in groups
-            ] + [
-                [
-                    types.InlineKeyboardButton(
-                        text="✅ Подтвердить выбор",
-                        callback_data="confirm_groups"
-                    )
-                ]
-            ]
-        )
+        groups = await Database.get_active_groups()
+        bulk_groups = await Database.get_bulk_groups()
         
-        await callback.message.edit_reply_markup(reply_markup=keyboard)
+        keyboard = []
+        
+        # Добавляем оптомгруппы
+        if bulk_groups:
+            keyboard.extend([
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if set([g['id'] for g in bg['groups']]).issubset(set(selected_groups)) else '📦'} "
+                             f"{bg['name']} ({len(bg['groups'])} групп)",
+                        callback_data=f"select_bulk_group_post_{bg['id']}"
+                    )
+                ] for bg in bulk_groups
+            ])
+            keyboard.append([
+                types.InlineKeyboardButton(
+                    text="➖ или выберите отдельные группы ➖",
+                    callback_data="separator"
+                )
+            ])
+        
+        # Добавляем отдельные группы
+        keyboard.extend([
+            [
+                types.InlineKeyboardButton(
+                    text=f"{'✅' if group['id'] in selected_groups else ''}{group['title']}",
+                    callback_data=f"select_group_{group['id']}"
+                )
+            ] for group in groups
+        ])
+        
+        # Добавляем кнопку подтверждения
+        keyboard.append([
+            types.InlineKeyboardButton(
+                text="✅ Подтвердить выбор",
+                callback_data="confirm_groups"
+            )
+        ])
+        
+        markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard)
+        
+        await callback.message.edit_text(
+            f"📢 Выберите группы для отправки поста\n"
+            f"Выбрано: {len(selected_groups)} групп",
+            reply_markup=markup
+        )
         await callback.answer()
         
     except Exception as e:
-        logger.exception(f"Ошибка при выборе группы: {str(e)}")
+        logger.error(f"Ошибка при выборе группы: {str(e)}")
         await callback.message.edit_text("❌ Ошибка при выборе группы")
         await state.clear()
 
@@ -1069,7 +1223,12 @@ async def back_to_main(message: types.Message, state: FSMContext):
                         SettingsStates.waiting_for_retries]:
         await state.clear()
         await settings_menu(message)
+    elif current_state and current_state.startswith('GroupStates:'):
+        # Если мы в состоянии работы с группами
+        await state.clear()
+        await manage_groups_menu(message)
     else:
+        await state.clear()
         await start_command(message)
 
 # Обработчик настройки интервала
@@ -1210,6 +1369,7 @@ async def manage_groups_menu(message: types.Message):
                 types.KeyboardButton(text="🔍 Проверка групп")
             ],
             [
+                types.KeyboardButton(text="📦 Оптомгруппы"),
                 types.KeyboardButton(text="◀️ Назад")
             ]
         ],
@@ -1221,6 +1381,512 @@ async def manage_groups_menu(message: types.Message):
         "Выберите действие:",
         reply_markup=keyboard
     )
+
+@dp.message(lambda m: m.text == "📦 Оптомгруппы")
+async def bulk_groups_menu(message: types.Message, state: FSMContext):
+    # Очищаем текущее состояние при входе в меню
+    await state.clear()
+    
+    keyboard = types.ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                types.KeyboardButton(text="➕ Добавить оптомгруппу"),
+                types.KeyboardButton(text="📋 Список оптомгрупп")
+            ],
+            [
+                types.KeyboardButton(text="✏️ Редактировать оптомгруппу"),
+                types.KeyboardButton(text="❌ Удалить оптомгруппу")
+            ],
+            [
+                types.KeyboardButton(text="◀️ Назад")
+            ]
+        ],
+        resize_keyboard=True
+    )
+    
+    await message.answer(
+        "📦 Управление оптомгруппами\n"
+        "Выберите действие:",
+        reply_markup=keyboard
+    )
+
+@dp.message(lambda m: m.text == "➕ Добавить оптомгруппу")
+async def add_bulk_group_start(message: types.Message, state: FSMContext):
+    await state.set_state(GroupStates.waiting_for_bulk_group_name)
+    await message.answer(
+        "📝 Введите название новой оптомгруппы\n"
+        "Например: Реклама Москва\n\n"
+        "Для отмены нажмите ◀️ Назад"
+    )
+
+@dp.message(GroupStates.waiting_for_bulk_group_name)
+async def process_bulk_group_name(message: types.Message, state: FSMContext):
+    name = message.text.strip()
+    
+    if len(name) < 3 or len(name) > 50:
+        await message.answer(
+            "❌ Название должно быть от 3 до 50 символов\n"
+            "Попробуйте еще раз"
+        )
+        return
+        
+    # Сохраняем название
+    await state.update_data(bulk_group_name=name)
+    
+    # Получаем список групп
+    groups = await Database.get_active_groups()
+    if not groups:
+        await message.answer("❌ Нет доступных групп для добавления")
+        await state.clear()
+        return
+        
+    # Создаем клавиатуру для выбора групп
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=f"⭕️ {group['title']}",
+                    callback_data=f"select_bulk_group_{group['id']}"
+                )
+            ] for group in groups
+        ] + [
+            [
+                types.InlineKeyboardButton(
+                    text="✅ Подтвердить выбор",
+                    callback_data="confirm_bulk_group_selection"
+                )
+            ]
+        ]
+    )
+    
+    await state.update_data(selected_groups=[])
+    await state.set_state(GroupStates.waiting_for_bulk_group_selection)
+    await message.answer(
+        f"Выберите группы для оптомгруппы '{name}'\n"
+        "Нажмите на группу, чтобы выбрать её",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data.startswith('select_bulk_group_'))
+async def select_bulk_group(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        group_id = int(callback.data.split('_')[3])
+        logger.info(f"Выбор группы {group_id} для оптомгруппы")
+        
+        data = await state.get_data()
+        selected_groups = data.get('selected_groups', [])
+        bulk_group_name = data.get('bulk_group_name', '')
+        edit_bulk_group_id = data.get('edit_bulk_group_id')  # Получаем ID редактируемой группы
+        
+        # Добавляем или удаляем группу из списка
+        if group_id in selected_groups:
+            selected_groups.remove(group_id)
+            logger.info(f"Группа {group_id} удалена из выбранных")
+        else:
+            selected_groups.append(group_id)
+            logger.info(f"Группа {group_id} добавлена к выбранным")
+            
+        # Сохраняем обновленный список
+        await state.update_data(selected_groups=selected_groups)
+        
+        # Получаем список всех групп
+        groups = await Database.get_active_groups()
+        if not groups:
+            logger.error("Нет доступных групп для выбора")
+            await callback.answer("❌ Нет доступных групп", show_alert=True)
+            return
+            
+        # Определяем callback_data для кнопки подтверждения
+        confirm_callback = "confirm_bulk_group_edit" if edit_bulk_group_id else "confirm_bulk_group_selection"
+        
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if group['id'] in selected_groups else '⭕️'} {group['title']}",
+                        callback_data=f"select_bulk_group_{group['id']}"
+                    )
+                ] for group in groups
+            ] + [
+                [
+                    types.InlineKeyboardButton(
+                        text="✅ Подтвердить изменения" if edit_bulk_group_id else "✅ Подтвердить выбор",
+                        callback_data=confirm_callback
+                    )
+                ]
+            ]
+        )
+        
+        message_text = (
+            f"{'Редактирование' if edit_bulk_group_id else 'Создание'} оптомгруппы "
+            f"'{bulk_group_name}'\n"
+            f"Выбрано: {len(selected_groups)} групп"
+        )
+        
+        await callback.message.edit_text(message_text, reply_markup=keyboard)
+        logger.info(f"Обновлен список выбранных групп: {selected_groups}")
+        
+    except ValueError as e:
+        logger.error(f"Ошибка при парсинге ID группы: {str(e)}")
+        await callback.answer("❌ Некорректный формат ID группы", show_alert=True)
+    except Exception as e:
+        logger.error(f"Ошибка при выборе группы: {str(e)}")
+        await callback.answer("❌ Произошла ошибка при выборе группы", show_alert=True)
+
+@dp.callback_query(lambda c: c.data == "confirm_bulk_group_selection")
+async def confirm_bulk_group_selection(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        data = await state.get_data()
+        selected_groups = data.get('selected_groups', [])
+        name = data.get('bulk_group_name')
+        
+        logger.info(f"Подтверждение создания оптомгруппы '{name}' с группами: {selected_groups}")
+        
+        if not selected_groups:
+            logger.warning("Попытка создания оптомгруппы без выбранных групп")
+            await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
+            return
+            
+        # Создаем новую оптомгруппу
+        bulk_group_id = await Database.add_bulk_group(name, selected_groups)
+        logger.info(f"Создана новая оптомгруппа с ID {bulk_group_id}")
+        
+        # Получаем названия выбранных групп
+        groups = await Database.get_active_groups()
+        selected_titles = [
+            group['title'] for group in groups 
+            if group['id'] in selected_groups
+        ]
+        
+        success_message = (
+            f"✅ Оптомгруппа '{name}' успешно создана!\n\n"
+            f"📋 Группы ({len(selected_groups)}):\n"
+            f"{chr(10).join('• ' + title for title in selected_titles)}"
+        )
+        
+        await callback.message.edit_text(success_message)
+        logger.info(f"Оптомгруппа '{name}' успешно создана с {len(selected_groups)} группами")
+        
+        # Показываем обновленный список оптомгрупп
+        await list_bulk_groups(callback.message)
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Ошибка при создании оптомгруппы: {str(e)}")
+        await callback.answer("❌ Произошла ошибка при создании оптомгруппы", show_alert=True)
+        await state.clear()
+
+@dp.message(lambda m: m.text == "📋 Список оптомгрупп")
+async def list_bulk_groups(message: types.Message):
+    try:
+        logger.info("Запрос списка оптомгрупп")
+        bulk_groups = await Database.get_bulk_groups()
+        
+        if not bulk_groups:
+            logger.info("Список оптомгрупп пуст")
+            await message.answer(
+                "📝 У вас нет оптомгрупп\n"
+                "Нажмите '➕ Добавить оптомгруппу' чтобы создать"
+            )
+            return
+        
+        # Формируем текст
+        text = "📋 Список оптомгрупп:\n\n"
+        for bg in bulk_groups:
+            text += f"📦 {bg['name']} (ID: {bg['id']})\n"
+            text += f"Групп: {len(bg['groups'])}\n"
+            text += f"Создана: {datetime.fromtimestamp(bg['created_at']).strftime('%d.%m.%Y %H:%M')}\n"
+            text += f"Группы в составе:\n"
+            for group in bg['groups']:
+                text += f"• {group['title']}"
+                if group['username']:
+                    text += f" (@{group['username']})"
+                text += "\n"
+            text += "\n"
+        
+        logger.info(f"Отображение {len(bulk_groups)} оптомгрупп с полной информацией")
+        await message.answer(text)
+        
+    except Exception as e:
+        logger.error(f"Ошибка при получении списка оптомгрупп: {str(e)}")
+        await message.answer("❌ Ошибка при получении списка оптомгрупп")
+
+@dp.message(lambda m: m.text == "✏️ Редактировать оптомгруппу")
+async def edit_bulk_group_start(message: types.Message):
+    bulk_groups = await Database.get_bulk_groups()
+    
+    if not bulk_groups:
+        await message.answer("❌ Нет оптомгрупп для редактирования")
+        return
+        
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=bg['name'],
+                    callback_data=f"edit_bulk_group_{bg['id']}"
+                )
+            ] for bg in bulk_groups
+        ]
+    )
+    
+    await message.answer(
+        "Выберите оптомгруппу для редактирования:",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data.startswith('edit_bulk_group_'))
+async def edit_bulk_group(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        # Очищаем предыдущее состояние
+        await state.clear()
+        
+        bulk_group_id = int(callback.data.split('_')[3])
+        logger.info(f"Начато редактирование оптомгруппы {bulk_group_id}")
+        
+        bulk_group = await Database.get_bulk_group_by_id(bulk_group_id)
+        
+        if not bulk_group:
+            error_msg = f"Оптомгруппа {bulk_group_id} не найдена"
+            logger.error(error_msg)
+            await callback.answer("❌ Оптомгруппа не найдена", show_alert=True)
+            return
+        
+        # Устанавливаем состояние перед сохранением данных
+        await state.set_state(GroupStates.waiting_for_bulk_group_selection)
+        
+        # Получаем ID групп из массива groups
+        selected_groups = [group['id'] for group in bulk_group['groups']]
+        
+        # Сохраняем данные в состояние
+        await state.update_data(
+            edit_bulk_group_id=bulk_group_id,
+            bulk_group_name=bulk_group['name'],
+            selected_groups=selected_groups
+        )
+        
+        logger.info(f"Загружены текущие данные оптомгруппы: {bulk_group}")
+        
+        # Получаем список групп
+        groups = await Database.get_active_groups()
+        if not groups:
+            error_msg = "Нет доступных групп для редактирования"
+            logger.error(error_msg)
+            await callback.answer(f"❌ {error_msg}", show_alert=True)
+            await state.clear()
+            return
+        
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if group['id'] in selected_groups else '⭕️'} {group['title']}",
+                        callback_data=f"select_bulk_group_{group['id']}"
+                    )
+                ] for group in groups
+            ] + [
+                [
+                    types.InlineKeyboardButton(
+                        text="✅ Подтвердить изменения",
+                        callback_data="confirm_bulk_group_edit"
+                    )
+                ]
+            ]
+        )
+        
+        await callback.message.edit_text(
+            f"Редактирование оптомгруппы '{bulk_group['name']}'\n"
+            f"Выбрано: {len(selected_groups)} групп",
+            reply_markup=keyboard
+        )
+        
+        logger.info(f"Открыт интерфейс редактирования оптомгруппы {bulk_group_id}")
+        
+    except ValueError as e:
+        error_msg = f"Ошибка при парсинге ID оптомгруппы: {str(e)}"
+        logger.error(error_msg)
+        await callback.answer("❌ Некорректный формат ID", show_alert=True)
+        await state.clear()
+    except Exception as e:
+        error_msg = f"Ошибка при начале редактирования оптомгруппы: {str(e)}"
+        logger.error(error_msg)
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        await state.clear()
+
+async def update_bulk_group_with_groups(bulk_group_id: int, selected_groups: list) -> tuple[bool, str]:
+    """Обновление оптомгруппы с выбранными группами"""
+    try:
+        if not bulk_group_id:
+            return False, "ID оптомгруппы не найден"
+            
+        if not selected_groups:
+            return False, "Не выбраны группы"
+            
+        # Обновляем существующую оптомгруппу
+        success = await Database.update_bulk_group(bulk_group_id, group_ids=selected_groups)
+        
+        if success:
+            # Получаем названия выбранных групп
+            groups = await Database.get_active_groups()
+            selected_titles = [
+                group['title'] for group in groups 
+                if group['id'] in selected_groups
+            ]
+            
+            success_message = (
+                f"✅ Оптомгруппа обновлена!\n\n"
+                f"📋 Группы ({len(selected_groups)}):\n"
+                f"{chr(10).join('• ' + title for title in selected_titles)}"
+            )
+            
+            return True, success_message
+        else:
+            return False, "Ошибка при обновлении оптомгруппы"
+            
+    except Exception as e:
+        return False, f"Ошибка: {str(e)}"
+
+@dp.callback_query(lambda c: c.data == "confirm_bulk_group_edit")
+async def confirm_bulk_group_edit(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        data = await state.get_data()
+        bulk_group_id = data.get('edit_bulk_group_id')
+        selected_groups = data.get('selected_groups', [])
+        bulk_group_name = data.get('bulk_group_name', '')
+        
+        if not bulk_group_id:
+            await callback.answer("❌ Группа не найдена", show_alert=True)
+            await state.clear()
+            return
+            
+        if not selected_groups:
+            await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
+            return
+            
+        success = await Database.update_bulk_group(bulk_group_id, group_ids=selected_groups)
+        
+        if success:
+            # Получаем обновленную оптомгруппу
+            bulk_group = await Database.get_bulk_group_by_id(bulk_group_id)
+            
+            success_message = (
+                f"✅ Оптомгруппа '{bulk_group_name}' обновлена!\n\n"
+                f"📋 Группы ({len(bulk_group['groups'])}):\n"
+                f"{chr(10).join('• ' + group['title'] for group in bulk_group['groups'])}"
+            )
+            
+            await callback.message.edit_text(success_message)
+            await list_bulk_groups(callback.message)
+            await state.clear()
+        else:
+            await callback.answer("❌ Ошибка при обновлении групп", show_alert=True)
+            
+    except Exception as e:
+        logger.error(f"Ошибка при подтверждении изменений: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        await state.clear()
+
+@dp.message(lambda m: m.text == "❌ Удалить оптомгруппу")
+async def delete_bulk_group_start(message: types.Message):
+    bulk_groups = await Database.get_bulk_groups()
+    
+    if not bulk_groups:
+        await message.answer("❌ Нет оптомгрупп для удаления")
+        return
+        
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=f"❌ {bg['name']}",
+                    callback_data=f"delete_bulk_group_{bg['id']}"
+                )
+            ] for bg in bulk_groups
+        ]
+    )
+    
+    await message.answer(
+        "Выберите оптомгруппу для удаления:",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data.startswith('delete_bulk_group_'))
+async def delete_bulk_group(callback: types.CallbackQuery):
+    try:
+        # Проверяем, не является ли это подтверждением
+        if 'confirm' in callback.data:
+            bulk_group_id = int(callback.data.split('_')[4])
+            logger.info(f"Подтверждение удаления оптомгруппы {bulk_group_id}")
+            
+            success = await Database.delete_bulk_group(bulk_group_id)
+            
+            if success:
+                logger.info(f"Оптомгруппа {bulk_group_id} успешно удалена")
+                await callback.message.edit_text("✅ Оптомгруппа успешно удалена")
+            else:
+                logger.error(f"Ошибка при удалении оптомгруппы {bulk_group_id}")
+                await callback.message.edit_text("❌ Ошибка при удалении оптомгруппы")
+            return
+            
+        bulk_group_id = int(callback.data.split('_')[3])
+        logger.info(f"Запрос на удаление оптомгруппы {bulk_group_id}")
+        
+        bulk_group = await Database.get_bulk_group_by_id(bulk_group_id)
+        
+        if not bulk_group:
+            logger.error(f"Оптомгруппа {bulk_group_id} не найдена")
+            await callback.answer("❌ Оптомгруппа не найдена", show_alert=True)
+            return
+            
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="✅ Да, удалить",
+                        callback_data=f"delete_bulk_group_confirm_{bulk_group_id}"
+                    ),
+                    types.InlineKeyboardButton(
+                        text="❌ Отмена",
+                        callback_data="cancel_bulk_group_delete"
+                    )
+                ]
+            ]
+        )
+        
+        await callback.message.edit_text(
+            f"⚠️ Вы действительно хотите удалить оптомгруппу '{bulk_group['name']}'?",
+            reply_markup=keyboard
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при обработке удаления оптомгруппы: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+
+@dp.callback_query(lambda c: c.data == "cancel_bulk_group_delete")
+async def cancel_bulk_group_delete(callback: types.CallbackQuery):
+    try:
+        groups = await Database.get_active_groups()
+        
+        if not groups:
+            await callback.message.edit_text("Список групп пуст")
+            return
+            
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [types.InlineKeyboardButton(
+                    text=f"❌ {group['title']}", 
+                    callback_data=f"delete_group_{group['id']}"
+                )] for group in groups
+            ]
+        )
+        
+        await callback.message.edit_text(
+            "Выберите группу для удаления:",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        logger.exception(f"Ошибка при отмене удаления: {str(e)}")
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
 
 @dp.message(lambda m: m.text == "⏰ Отложенный пост")
 async def scheduled_post_start(message: types.Message, state: FSMContext):
@@ -2033,8 +2699,10 @@ async def automated_post_start(message: types.Message, state: FSMContext):
     await state.set_state(PostStates.waiting_for_auto_groups)
     await state.update_data(selected_groups=[])
     
-    # Получаем список групп
+    # Получаем список групп и оптомгрупп
     groups = await Database.get_active_groups()
+    bulk_groups = await Database.get_bulk_groups()
+    
     if not groups:
         await message.answer(
             "❌ У вас нет добавленных групп.\n"
@@ -2043,30 +2711,52 @@ async def automated_post_start(message: types.Message, state: FSMContext):
         await state.clear()
         return
         
-    # Создаем клавиатуру с группами
-    keyboard = types.InlineKeyboardMarkup(
-        inline_keyboard=[
+    # Создаем клавиатуру с оптомгруппами и группами
+    keyboard = []
+    
+    # Добавляем оптомгруппы
+    if bulk_groups:
+        keyboard.extend([
             [
                 types.InlineKeyboardButton(
-                    text=f"⭕️ {group['title']}",
-                    callback_data=f"select_group_{group['id']}"
+                    text=f"📦 {bg['name']} ({len(bg['groups'])} групп)",
+                    callback_data=f"select_bulk_group_post_{bg['id']}"
                 )
-            ] for group in groups
-        ] + [
-            [
-                types.InlineKeyboardButton(
-                    text="✅ Подтвердить выбор",
-                    callback_data="confirm_auto_groups"
-                )
-            ]
-        ]
-    )
+            ] for bg in bulk_groups
+        ])
+        # Добавляем разделитель
+        keyboard.append([
+            types.InlineKeyboardButton(
+                text="➖ или выберите отдельные группы ➖",
+                callback_data="separator"
+            )
+        ])
+    
+    # Добавляем отдельные группы
+    keyboard.extend([
+        [
+            types.InlineKeyboardButton(
+                text=f"⭕️ {group['title']}",
+                callback_data=f"select_group_{group['id']}"
+            )
+        ] for group in groups
+    ])
+    
+    # Добавляем кнопку подтверждения
+    keyboard.append([
+        types.InlineKeyboardButton(
+            text="✅ Подтвердить выбор",
+            callback_data="confirm_auto_groups"
+        )
+    ])
+    
+    markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard)
     
     await message.answer(
         "👥 Выберите группы для автопостинга\n"
         "Нажмите на группу, чтобы выбрать её.\n"
-        "Можно выбрать несколько групп.",
-        reply_markup=keyboard
+        "Можно выбрать несколько групп или оптомгруппу.",
+        reply_markup=markup
     )
 
 @dp.callback_query(lambda c: c.data == "confirm_auto_groups")
@@ -2101,6 +2791,13 @@ async def confirm_auto_groups(callback: types.CallbackQuery, state: FSMContext):
                     callback_data=f"select_account_{account['id']}"
                 )
             ] for account in accounts
+        ] + [
+            [
+                types.InlineKeyboardButton(
+                    text="✅ Подтвердить выбор",
+                    callback_data="confirm_auto_accounts"
+                )
+            ]
         ]
     )
     
@@ -2408,6 +3105,8 @@ async def check_automated_posts():
                     
                     current_account_index = 0
                     current_group_index = 0
+                    success_count = 0
+                    error_count = 0
                     
                     while current_group_index < len(groups):
                         account = accounts[current_account_index]
@@ -2422,17 +3121,52 @@ async def check_automated_posts():
                                 break
                                 
                             group = groups[current_group_index]
-                            await posting_pool.add_posting_task(
+                            task = await posting_pool.add_posting_task(
                                 posting_manager=posting_manager,
                                 group_id=group['group_id'],
                                 message_data=post['message']
                             )
+                            
+                            if task:
+                                try:
+                                    success, message = await task
+                                    if success:
+                                        success_count += 1
+                                        logger.info(f"✅ Успешно отправлено в группу {group['title']} через аккаунт {account['phone']}")
+                                    else:
+                                        error_count += 1
+                                        logger.error(f"❌ Ошибка при отправке в группу {group['title']}: {message}")
+                                except Exception as e:
+                                    error_count += 1
+                                    logger.error(f"❌ Ошибка при отправке в группу {group['title']}: {str(e)}")
+                            
                             current_group_index += 1
                         
                         current_account_index = (current_account_index + 1) % len(accounts)
                     
                     # Ждем завершения всех отправок
                     await posting_pool.wait_all()
+                    
+                    # Отправляем уведомление пользователю только если были успешные отправки
+                    if success_count > 0:
+                        try:
+                            user_id = post['message'].get('user_id')
+                            if user_id:
+                                # Формируем список групп, в которые был отправлен пост
+                                groups_text = "\n".join([f"• {g['title']}" for g in groups])
+                                
+                                await bot.send_message(
+                                    user_id,
+                                    f"✅ Автоматизированный пост #{post['id']} успешно отправлен!\n\n"
+                                    f"📊 Статистика:\n"
+                                    f"✅ Успешно: {success_count}\n"
+                                    f"❌ Ошибок: {error_count}\n\n"
+                                    f"📢 Группы:\n{groups_text}\n\n"
+                                    f"⏰ Время отправки: {current_time}"
+                                )
+                        except Exception as e:
+                            logger.error(f"Ошибка при отправке уведомления пользователю: {str(e)}")
+                    
                     logger.info(f"Автоматизированный пост #{post['id']} отправлен")
             
             # Проверяем каждую минуту
@@ -2704,6 +3438,13 @@ async def confirm_auto_groups(callback: types.CallbackQuery, state: FSMContext):
                     callback_data=f"select_account_{account['id']}"
                 )
             ] for account in accounts
+        ] + [
+            [
+                types.InlineKeyboardButton(
+                    text="✅ Подтвердить выбор",
+                    callback_data="confirm_auto_accounts"
+                )
+            ]
         ]
     )
     
@@ -2924,56 +3665,63 @@ async def confirm_edit_groups(callback: types.CallbackQuery, state: FSMContext):
         # Получаем данные из состояния
         data = await state.get_data()
         if not data:
-            logger.error("Данные состояния не найдены")
             await callback.answer("❌ Ошибка: данные не найдены", show_alert=True)
             await state.clear()
             return
 
         post_id = data.get('edit_post_id')
+        bulk_group_id = data.get('edit_bulk_group_id')
         selected_groups = data.get('selected_groups', [])
 
-        # Проверяем наличие post_id
-        if not post_id:
-            logger.error("post_id не найден в состоянии")
-            await callback.answer("❌ Ошибка: пост не найден", show_alert=True)
-            await state.clear()
-            return
+        # Проверяем, что мы редактируем либо пост, либо оптомгруппу
+        if post_id:
+            # Логика для редактирования групп поста
+            if not selected_groups:
+                await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
+                return
 
-        # Проверяем наличие выбранных групп
-        if not selected_groups:
-            await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
-            return
-
-        # Получаем пост для проверки
-        post = await Database.get_automated_post_by_id(post_id)
-        if not post:
-            logger.error(f"Пост с ID {post_id} не найден в базе данных")
-            await callback.answer("❌ Ошибка: пост не найден в базе данных", show_alert=True)
-            await state.clear()
-            return
-
-        # Обновляем группы в базе данных
-        try:
             success = await Database.update_automated_post(post_id, groups=selected_groups)
-            
             if success:
-                logger.info(f"Группы успешно обновлены для поста {post_id}. Новые группы: {selected_groups}")
-                # Очищаем состояние
-                await state.clear()
-                # Возвращаемся к меню поста с обновленными данными
                 await callback.answer("✅ Группы успешно обновлены", show_alert=True)
+                await state.clear()
                 await auto_post_menu(callback)
             else:
-                logger.error(f"Ошибка при обновлении групп для поста {post_id}")
                 await callback.answer("❌ Ошибка при обновлении групп", show_alert=True)
                 await state.clear()
-        except Exception as db_error:
-            logger.error(f"Ошибка базы данных при обновлении групп: {str(db_error)}")
-            await callback.answer("❌ Ошибка при сохранении изменений", show_alert=True)
+
+        elif bulk_group_id:
+            # Логика для редактирования оптомгруппы
+            if not selected_groups:
+                await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
+                return
+
+            success = await Database.update_bulk_group(bulk_group_id, group_ids=selected_groups)
+            if success:
+                # Получаем названия выбранных групп
+                groups = await Database.get_active_groups()
+                selected_titles = [
+                    group['title'] for group in groups 
+                    if group['id'] in selected_groups
+                ]
+                
+                success_message = (
+                    f"✅ Оптомгруппа обновлена!\n\n"
+                    f"📋 Группы ({len(selected_groups)}):\n"
+                    f"{chr(10).join('• ' + title for title in selected_titles)}"
+                )
+                
+                await callback.message.edit_text(success_message)
+                await list_bulk_groups(callback.message)
+                await state.clear()
+            else:
+                await callback.answer("❌ Ошибка при обновлении групп", show_alert=True)
+                await state.clear()
+        else:
+            await callback.answer("❌ Ошибка: не найден ID для обновления", show_alert=True)
             await state.clear()
             
     except Exception as e:
-        logger.error(f"Ошибка при подтверждении групп: {str(e)}")
+        logger.error(f"Ошибка при подтверждении изменений: {str(e)}")
         await callback.answer("❌ Произошла ошибка", show_alert=True)
         await state.clear()
 
@@ -3198,6 +3946,146 @@ async def select_edit_account(callback: types.CallbackQuery, state: FSMContext):
         logger.error(f"Ошибка при выборе аккаунта: {str(e)}")
         await callback.answer("❌ Ошибка при выборе аккаунта", show_alert=True)
         await state.clear()
+
+@dp.message(lambda m: m.text not in [
+    "➕ Добавить оптомгруппу",
+    "📋 Список оптомгрупп",
+    "✏️ Редактировать оптомгруппу",
+    "❌ Удалить оптомгруппу",
+    "◀️ Назад"
+])
+async def invalid_bulk_groups_input(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    
+    # Если мы не в состоянии ожидания ввода для оптомгрупп, игнорируем
+    if not current_state or not current_state.startswith('GroupStates:'):
+        return
+        
+    # Если мы ожидаем ввод названия оптомгруппы
+    if current_state == 'GroupStates:waiting_for_bulk_group_name':
+        if len(message.text.strip()) < 3 or len(message.text.strip()) > 50:
+            await message.answer(
+                "❌ Ошибка: название должно быть от 3 до 50 символов\n"
+                "Попробуйте еще раз или нажмите ◀️ Назад для отмены"
+            )
+            return
+            
+    # В остальных случаях возвращаем в меню оптомгрупп
+    await bulk_groups_menu(message, state)
+
+@dp.callback_query(GroupStates.waiting_for_bulk_group_selection, lambda c: c.data == "confirm_bulk_group_selection")
+async def confirm_bulk_group_selection(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        data = await state.get_data()
+        selected_groups = data.get('selected_groups', [])
+        name = data.get('bulk_group_name')
+        
+        logger.info(f"Подтверждение создания оптомгруппы '{name}' с группами: {selected_groups}")
+        
+        if not selected_groups:
+            logger.warning("Попытка создания оптомгруппы без выбранных групп")
+            await callback.answer("❌ Выберите хотя бы одну группу!", show_alert=True)
+            return
+            
+        # Создаем новую оптомгруппу
+        bulk_group_id = await Database.add_bulk_group(name, selected_groups)
+        logger.info(f"Создана новая оптомгруппа с ID {bulk_group_id}")
+        
+        # Получаем названия выбранных групп
+        groups = await Database.get_active_groups()
+        selected_titles = [
+            group['title'] for group in groups 
+            if group['id'] in selected_groups
+        ]
+        
+        success_message = (
+            f"✅ Оптомгруппа '{name}' успешно создана!\n\n"
+            f"📋 Группы ({len(selected_groups)}):\n"
+            f"{chr(10).join('• ' + title for title in selected_titles)}"
+        )
+        
+        await callback.message.edit_text(success_message)
+        logger.info(f"Оптомгруппа '{name}' успешно создана с {len(selected_groups)} группами")
+        
+        # Показываем обновленный список оптомгрупп
+        await list_bulk_groups(callback.message)
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Ошибка при создании оптомгруппы: {str(e)}")
+        await callback.answer("❌ Произошла ошибка при создании оптомгруппы", show_alert=True)
+        await state.clear()
+
+@dp.callback_query(GroupStates.waiting_for_bulk_group_selection, lambda c: c.data.startswith('select_bulk_group_'))
+async def select_bulk_group_for_edit(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        group_id = int(callback.data.split('_')[3])
+        logger.info(f"Выбор группы {group_id} для редактирования оптомгруппы")
+        
+        # Получаем данные из состояния
+        data = await state.get_data()
+        selected_groups = data.get('selected_groups', [])
+        bulk_group_name = data.get('bulk_group_name', '')
+        edit_bulk_group_id = data.get('edit_bulk_group_id')
+        
+        if not edit_bulk_group_id:
+            logger.error("ID редактируемой оптомгруппы не найден")
+            await callback.answer("❌ Ошибка: группа не найдена", show_alert=True)
+            await state.clear()
+            return
+        
+        # Добавляем или удаляем группу из списка
+        if group_id in selected_groups:
+            selected_groups.remove(group_id)
+            logger.info(f"Группа {group_id} удалена из выбранных")
+        else:
+            selected_groups.append(group_id)
+            logger.info(f"Группа {group_id} добавлена к выбранным")
+        
+        # Сохраняем обновленный список
+        await state.update_data(selected_groups=selected_groups)
+        
+        # Получаем список всех групп
+        groups = await Database.get_active_groups()
+        if not groups:
+            logger.error("Нет доступных групп для выбора")
+            await callback.answer("❌ Нет доступных групп", show_alert=True)
+            return
+        
+        # Создаем клавиатуру
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=f"{'✅' if group['id'] in selected_groups else '⭕️'} {group['title']}",
+                        callback_data=f"select_bulk_group_{group['id']}"
+                    )
+                ] for group in groups
+            ] + [
+                [
+                    types.InlineKeyboardButton(
+                        text="✅ Подтвердить изменения",
+                        callback_data="confirm_bulk_group_edit"
+                    )
+                ]
+            ]
+        )
+        
+        # Обновляем сообщение
+        await callback.message.edit_text(
+            f"Редактирование оптомгруппы '{bulk_group_name}'\n"
+            f"Выбрано: {len(selected_groups)} групп",
+            reply_markup=keyboard
+        )
+        
+        await callback.answer()
+        
+    except ValueError as e:
+        logger.error(f"Ошибка при парсинге ID группы: {str(e)}")
+        await callback.answer("❌ Некорректный формат ID группы", show_alert=True)
+    except Exception as e:
+        logger.error(f"Ошибка при выборе группы: {str(e)}")
+        await callback.answer("❌ Произошла ошибка при выборе группы", show_alert=True)
 
 async def main():
     # Инициализация базы данных

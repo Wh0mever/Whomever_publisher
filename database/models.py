@@ -14,6 +14,7 @@ ACCOUNTS_FILE = DATABASE_DIR / "accounts.json"
 GROUPS_FILE = DATABASE_DIR / "groups.json"
 POSTS_FILE = DATABASE_DIR / "posts.json"
 SETTINGS_FILE = DATABASE_DIR / "settings.json"
+BULK_GROUPS_FILE = DATABASE_DIR / "bulk_groups.json"
 
 # Создаем директорию для базы данных
 DATABASE_DIR.mkdir(parents=True, exist_ok=True)
@@ -29,6 +30,7 @@ DEFAULT_SETTINGS = {
         "max_retries": "3"
     }
 }
+DEFAULT_BULK_GROUPS = {"bulk_groups": []}
 
 async def init_db():
     """Инициализация JSON файлов базы данных"""
@@ -36,7 +38,8 @@ async def init_db():
         ACCOUNTS_FILE: DEFAULT_ACCOUNTS,
         GROUPS_FILE: DEFAULT_GROUPS,
         POSTS_FILE: DEFAULT_POSTS,
-        SETTINGS_FILE: DEFAULT_SETTINGS
+        SETTINGS_FILE: DEFAULT_SETTINGS,
+        BULK_GROUPS_FILE: DEFAULT_BULK_GROUPS
     }
     
     for file_path, default_data in files.items():
@@ -416,4 +419,120 @@ class Database:
         data = await Database._read_json(POSTS_FILE)
         posts = data.get("automated_posts", [])
         data["automated_posts"] = [p for p in posts if p["id"] != post_id]
-        await Database._write_json(POSTS_FILE, data) 
+        await Database._write_json(POSTS_FILE, data)
+
+    @staticmethod
+    async def add_bulk_group(name: str, group_ids: List[int]) -> int:
+        """Добавление новой оптомгруппы"""
+        data = await Database._read_json(BULK_GROUPS_FILE)
+        bulk_groups = data.get("bulk_groups", [])
+        
+        # Генерируем новый ID
+        new_id = max([group.get("id", 0) for group in bulk_groups], default=0) + 1
+        
+        # Получаем полную информацию о группах
+        groups_data = await Database._read_json(GROUPS_FILE)
+        groups = groups_data.get("groups", [])
+        selected_groups = []
+        
+        for group in groups:
+            if group["id"] in group_ids:
+                selected_groups.append({
+                    "id": group["id"],
+                    "group_id": group["group_id"],
+                    "title": group["title"],
+                    "username": group["username"],
+                    "invite_link": group["invite_link"],
+                    "status": group["status"]
+                })
+        
+        bulk_group = {
+            "id": new_id,
+            "name": name,
+            "groups": selected_groups,
+            "created_at": int(time.time())
+        }
+        
+        bulk_groups.append(bulk_group)
+        data["bulk_groups"] = bulk_groups
+        await Database._write_json(BULK_GROUPS_FILE, data)
+        return new_id
+
+    @staticmethod
+    async def get_bulk_groups() -> List[dict]:
+        """Получение всех оптомгрупп"""
+        data = await Database._read_json(BULK_GROUPS_FILE)
+        return data.get("bulk_groups", [])
+
+    @staticmethod
+    async def get_bulk_group_by_id(bulk_group_id: int) -> Optional[dict]:
+        """Получение оптомгруппы по ID"""
+        data = await Database._read_json(BULK_GROUPS_FILE)
+        for bulk_group in data.get("bulk_groups", []):
+            if bulk_group["id"] == bulk_group_id:
+                return bulk_group
+        return None
+
+    @staticmethod
+    async def update_bulk_group(bulk_group_id: int, name: str = None, group_ids: List[int] = None) -> bool:
+        """Обновление оптомгруппы"""
+        try:
+            data = await Database._read_json(BULK_GROUPS_FILE)
+            bulk_groups = data.get("bulk_groups", [])
+            updated = False
+            
+            # Находим индекс оптомгруппы
+            index = None
+            for i, group in enumerate(bulk_groups):
+                if group["id"] == bulk_group_id:
+                    index = i
+                    break
+            
+            if index is not None:
+                # Обновляем существующую запись
+                if name is not None:
+                    bulk_groups[index]["name"] = name
+                if group_ids is not None:
+                    # Получаем полную информацию о группах
+                    groups_data = await Database._read_json(GROUPS_FILE)
+                    groups = groups_data.get("groups", [])
+                    selected_groups = []
+                    
+                    for group in groups:
+                        if group["id"] in group_ids:
+                            selected_groups.append({
+                                "id": group["id"],
+                                "group_id": group["group_id"],
+                                "title": group["title"],
+                                "username": group["username"],
+                                "invite_link": group["invite_link"],
+                                "status": group["status"]
+                            })
+                    
+                    bulk_groups[index]["groups"] = selected_groups
+                updated = True
+                
+                # Сохраняем обновленные данные
+                data["bulk_groups"] = bulk_groups
+                await Database._write_json(BULK_GROUPS_FILE, data)
+                return True
+            
+            return False
+            
+        except Exception as e:
+            return False
+
+    @staticmethod
+    async def delete_bulk_group(bulk_group_id: int) -> bool:
+        """Удаление оптомгруппы"""
+        try:
+            data = await Database._read_json(BULK_GROUPS_FILE)
+            bulk_groups = data.get("bulk_groups", [])
+            initial_length = len(bulk_groups)
+            
+            data["bulk_groups"] = [bg for bg in bulk_groups if bg["id"] != bulk_group_id]
+            await Database._write_json(BULK_GROUPS_FILE, data)
+            
+            return len(data["bulk_groups"]) < initial_length
+        except Exception as e:
+            return False 
