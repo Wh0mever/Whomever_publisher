@@ -10,9 +10,9 @@ SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # Настройки бота
-BOT_TOKEN = "7663481813:AAE_Tt4ee-vTMS5Id3KUoN0-BO0VajWS7eo"  # Токен от @BotFather
-API_ID = 27490992  # Ваш API ID от https://my.telegram.org/apps
-API_HASH = "c6f7d86306c156d7988d3148283d1407"  # Ваш API Hash от https://my.telegram.org/apps
+BOT_TOKEN = "111111111111111111111111111"  # Токен от @BotFather
+API_ID = 1111111111111111111111  # Ваш API ID от https://my.telegram.org/apps
+API_HASH = "111111111111111111111111"  # Ваш API Hash от https://my.telegram.org/apps
 
 # Настройки постинга
 DEFAULT_DELAY = 30  # Задержка между постами в секундах
